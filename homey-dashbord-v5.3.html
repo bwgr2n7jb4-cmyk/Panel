@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Anlegg</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Anlegg">
+<meta name="theme-color" content="#1c1d20">
+<meta name="robots" content="noindex,nofollow">
+<link rel="apple-touch-icon" href="homey-ikon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Barlow+Condensed:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+/* Hybrid: anleggsskjema (D) som grunnmur, rundmålere (B) for nøkkelverdier, sikkerhet + fukt-kort (A). Tre layoutvarianter. */
+:root{
+  --bg:#0a1219; --s:#0f1b25; --s2:#132230; --line:#1f3242; --grid:rgba(120,170,210,.055);
+  --t:#d9e6ef; --m:#7f97a8; --d:#4d6577; --cy:#5fc8e8;
+  --ok:#4fc38c; --warn:#f0b13c; --crit:#ef5d5d;
+  --okb:rgba(79,195,140,.12); --warnb:rgba(240,177,60,.13); --critb:rgba(239,93,93,.14);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace; --sans:"IBM Plex Sans",system-ui,sans-serif; --gnum:"Barlow Condensed","Arial Narrow",sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;color:var(--t);font-family:var(--sans);font-size:14.5px;line-height:1.45;
+  background:var(--bg) linear-gradient(var(--grid) 1px,transparent 1px) 0 0/24px 24px;}
+body{background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);background-size:24px 24px}
+.num{font-variant-numeric:tabular-nums}
+
+/* Velger */
+.switch{position:sticky;top:0;z-index:20;background:rgba(10,18,25,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.switch .in{max-width:1400px;margin:0 auto;padding:10px 20px;display:flex;gap:8px;align-items:center;overflow-x:auto}
+.switch .lab{font-size:12px;color:var(--m);white-space:nowrap;margin-right:4px}
+.switch button{font:500 13px var(--sans);color:var(--t);background:transparent;border:1px solid var(--line);border-radius:99px;padding:7px 14px;cursor:pointer;white-space:nowrap}
+.switch button:hover{border-color:#36536a}
+.switch button[aria-pressed="true"]{background:var(--t);color:var(--bg);border-color:var(--t)}
+.switch button:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+.switch .ver{margin-left:auto;font:12px var(--mono);color:var(--d);white-space:nowrap;padding-left:12px}
+.v{display:none}.v.on{display:block}
+.wrap{max-width:1400px;margin:0 auto;padding:20px 24px 40px;display:flex;flex-direction:column;gap:14px}
+
+/* Felles: topp */
+.hd{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:baseline}
+.hd h1{font:500 18px var(--mono);letter-spacing:.06em;margin:0;text-transform:uppercase}
+.hd .meta{font:12px var(--mono);color:var(--m);display:flex;gap:12px;flex-wrap:wrap}
+.hd .meta b{font-weight:500}
+
+/* Felles: paneler (D) */
+.panel{border:1px solid var(--line);background:rgba(15,27,37,.88);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0;font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--m)}
+.ph small{font:12px var(--sans);letter-spacing:0;text-transform:none;color:var(--d)}
+.tag{font:500 10.5px var(--mono);padding:2px 7px;border-radius:3px;letter-spacing:.06em;white-space:nowrap}
+.tag.ok{color:var(--ok);background:var(--okb)}.tag.warn{color:var(--warn);background:var(--warnb)}.tag.crit{color:var(--crit);background:var(--critb)}.tag.n{color:var(--m);background:var(--s2)}
+
+/* Bygningsblokker (D) */
+.blk{border:1.5px solid var(--line);background:rgba(15,27,37,.9);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.blk.ok{border-color:rgba(79,195,140,.5)}.blk.warn{border-color:rgba(240,177,60,.7)}.blk.crit{border-color:rgba(239,93,93,.8);box-shadow:0 0 0 3px rgba(239,93,93,.1)}
+.rooms{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.rm{border:1px dashed var(--line);border-radius:4px;padding:8px 10px;font-size:12px;color:var(--m);display:flex;flex-direction:column;gap:1px;min-width:0}
+.rm.warn{border:1px solid rgba(240,177,60,.7)}.rm.crit{border:1px solid rgba(239,93,93,.8)}
+.rm b{color:var(--t);font:500 16px var(--mono)}
+
+/* Rundmålere (B) */
+.gauge{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.gauge svg{width:100%;max-width:150px;aspect-ratio:1;display:block}
+.gauge .gl{font:500 11.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--m);text-align:center}
+.gauge .gf{font-size:12px;color:var(--m);text-align:center}
+.gstrip{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid var(--line);border-radius:6px;background:rgba(15,27,37,.88);overflow:hidden}
+.gstrip .gauge{padding:14px 10px;border-right:1px solid var(--line)}
+.gstrip .gauge:last-child{border-right:0}
+
+/* Sikkerhet (A) */
+.rows{display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:10px 0;border-top:1px solid var(--line);align-items:center}
+.row:first-child{border-top:0;padding-top:2px}
+.row .nm{font-weight:500}
+.row .dt{grid-column:1/-1;color:var(--m);font-size:12.5px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.ok{color:var(--ok);background:var(--okb)}.pill.warn{color:var(--warn);background:var(--warnb)}.pill.crit{color:var(--crit);background:var(--critb)}.pill.n{color:var(--m);background:var(--s2)}
+
+/* Fukt og rust (A) */
+.zones{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.zones.two{grid-template-columns:1fr 1fr}
+.zone{background:var(--s2);border-radius:10px;padding:12px;border-top:3px solid var(--line);display:flex;flex-direction:column;gap:5px;min-width:0}
+.zone.ok{border-top-color:var(--ok)}.zone.warn{border-top-color:var(--warn)}.zone.crit{border-top-color:var(--crit)}
+.zone .zn{display:flex;justify-content:space-between;gap:6px;font-size:13px;color:var(--m);align-items:center}
+.zone .rh{font-size:28px;font-weight:500;line-height:1.1}.zone .rh small{font-size:14px;color:var(--m);font-weight:400}
+.zone .ex{font-size:12px;color:var(--m)}
+.nohist{height:40px;display:flex;align-items:center;font-size:11.5px;color:var(--d)}
+
+/* Logg (D) */
+.log{font:12.5px var(--mono);display:flex;flex-direction:column;gap:7px}
+.log div{display:grid;grid-template-columns:48px 58px 1fr;gap:8px;align-items:start}
+.log .t{color:var(--m)}
+.phase{display:grid;grid-template-columns:26px 1fr 54px;gap:8px;align-items:center;font:12.5px var(--mono)}
+.phase .tr{height:8px;background:#13222e;border-radius:2px;position:relative}
+.phase .tr i{position:absolute;inset:0 auto 0 0;background:var(--cy);border-radius:2px}
+.foot{font:11px var(--mono);color:var(--d)}
+
+/* ===== Variant 1: Målerstripe + skjema ===== */
+.v1 .site{display:grid;grid-template-columns:1.5fr 1fr 1.5fr;gap:14px;align-items:start}
+.v1 .mid{display:grid;grid-template-columns:2fr 1fr;gap:14px;align-items:start}
+.v1 .low{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+
+/* ===== Variant 2: Målere inne i byggene ===== */
+.v2 .main{display:grid;grid-template-columns:1fr 380px;gap:14px;align-items:start}
+.v2 .site{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.v2 .blk .inner{display:grid;grid-template-columns:132px 1fr;gap:12px;align-items:center}
+.v2 .blk .inner .gauge svg{max-width:132px}
+.v2 .side{display:flex;flex-direction:column;gap:14px}
+
+/* ===== Variant 3: Kontrollpult ===== */
+.v3 .desk{display:grid;grid-template-columns:minmax(320px,1fr) minmax(420px,1.45fr) minmax(300px,.95fr);gap:14px;align-items:start}
+.v3 .col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.v3 .map{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:auto;gap:6px}
+.v3 .map .cell{border:1.5px solid var(--line);border-radius:4px;padding:5px 7px;font:500 10.5px var(--mono);letter-spacing:.04em;text-transform:uppercase;display:flex;flex-direction:column;justify-content:space-between;color:var(--m);background:rgba(19,34,48,.6);min-width:0;overflow:hidden;min-height:46px}
+.v3 .map .cell b{font:500 13px var(--mono);color:var(--t);text-transform:none;letter-spacing:0}
+.v3 .map .cell.ok{border-color:rgba(79,195,140,.5)}.v3 .map .cell.warn{border-color:rgba(240,177,60,.75);background:rgba(240,177,60,.06)}.v3 .map .cell.crit{border-color:rgba(239,93,93,.85);background:rgba(239,93,93,.08)}
+.v3 .map .lbl{grid-column:1/-1;font:11px var(--mono);color:var(--d);letter-spacing:.1em;padding-top:6px}
+.v3 .g4{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:6px;background:rgba(15,27,37,.88);overflow:hidden}
+.v3 .g4 .gauge{padding:14px 10px;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.v3 .g4 .gauge:nth-child(2n){border-right:0}.v3 .g4 .gauge:nth-last-child(-n+2){border-bottom:0}
+.v3 .g4 .gauge svg{max-width:170px}
+
+/* ===== Responsiv ===== */
+@media(max-width:1150px){
+  .gstrip{grid-template-columns:repeat(3,1fr)}
+  .gstrip .gauge{border-bottom:1px solid var(--line)}
+  .v1 .site{grid-template-columns:1fr 1fr}.v1 .site .house{grid-column:span 2}
+  .v1 .mid,.v1 .low{grid-template-columns:1fr}
+  .v2 .main{grid-template-columns:1fr}
+  .v3 .desk{grid-template-columns:1fr 1fr}.v3 .desk .center{grid-column:span 2;order:-1}
+}
+@media(max-width:640px){
+  .wrap{padding:14px 14px 30px;gap:12px}
+  .hd h1{font-size:15px}
+  .gstrip{grid-template-columns:1fr 1fr}
+  .gstrip .gauge:nth-child(5){grid-column:span 2}
+  .v1 .site{grid-template-columns:1fr}.v1 .site .house{grid-column:auto}
+  .zones{grid-template-columns:1fr 1fr}
+  .v2 .site{grid-template-columns:1fr}
+  .v2 .blk .inner{grid-template-columns:110px 1fr}
+  .v3 .desk{display:flex;flex-direction:column;align-items:stretch}.v3 .col{display:contents}
+  .o-logg{order:1}.o-sik{order:2}.o-g4{order:3}.o-fukt{order:4}.o-vaer{order:5}.o-graf{order:6}.o-map{order:7}.o-faser{order:8}
+  .log div{grid-template-columns:40px 54px 1fr}
+}
+@media (prefers-reduced-motion:no-preference){.v.on{animation:fade .25s ease}@keyframes fade{from{opacity:.4}to{opacity:1}}}
+
+/* v1.4: tilkobling, innstillinger, vær */
+.conn{display:inline-flex;align-items:center;gap:6px}
+.conn i{width:8px;height:8px;border-radius:50%;background:var(--d)}
+.conn.live i{background:var(--ok);box-shadow:0 0 0 3px rgba(79,195,140,.18)}
+.conn.err i{background:var(--crit)}
+.conn.wait i{background:var(--warn)}
+.btn{font:500 12px var(--mono);letter-spacing:.06em;color:var(--t);background:var(--s2);border:1px solid var(--line);border-radius:4px;padding:6px 10px;cursor:pointer}
+.btn:hover{border-color:#36536a}
+.btn:focus-visible,.inp:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+.btn.pri{background:var(--cy);color:#04141c;border-color:var(--cy)}
+.banner{border:1px solid rgba(240,177,60,.5);background:rgba(240,177,60,.08);border-radius:6px;padding:10px 14px;font-size:13px;display:none}
+.banner.on{display:block}
+.banner.err{border-color:rgba(239,93,93,.6);background:rgba(239,93,93,.08)}
+.banner code{font:12px var(--mono)}
+dialog{border:1px solid var(--line);background:var(--s);color:var(--t);border-radius:8px;padding:0;max-width:460px;width:calc(100% - 32px)}
+dialog::backdrop{background:rgba(3,8,12,.7)}
+dialog form{padding:20px;display:flex;flex-direction:column;gap:12px}
+dialog h2{margin:0;font:500 15px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+dialog p{margin:0;color:var(--m);font-size:13px}
+dialog label{font-size:12.5px;color:var(--m);display:flex;flex-direction:column;gap:5px}
+.inp{font:13px var(--mono);color:var(--t);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:9px 10px;width:100%}
+.dlgbtns{display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.wx-now{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.wx-box{background:var(--s2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.wx-box .src{font:11px var(--mono);color:var(--m);letter-spacing:.08em;text-transform:uppercase}
+.wx-box .t{font:400 30px var(--gnum);line-height:1.1}
+.wx-box .d{font-size:12px;color:var(--m)}
+.delta{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.delta div{background:var(--s2);border-radius:8px;padding:7px 10px;display:flex;flex-direction:column;font-size:12px;color:var(--m)}
+.delta b{color:var(--t);font:500 15px var(--mono)}
+.fc{display:grid;grid-template-columns:repeat(8,1fr);gap:5px}
+.fc .h{background:var(--s2);border-radius:6px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:1px;font:11px var(--mono);color:var(--m)}
+.fc .h b{color:var(--t);font:500 13px var(--mono)}
+.fc svg{width:22px;height:22px;color:var(--t)}
+.stale{opacity:.55}
+@media(max-width:640px){.fc{grid-template-columns:repeat(4,1fr)}.wx-now{grid-template-columns:1fr}}
+@media(max-width:640px){.o-vaer{order:5}}
+.luft{background:var(--s2);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;border-left:3px solid var(--line)}
+.luft.ok{border-left-color:var(--ok)}.luft.warn{border-left-color:var(--warn)}
+.luft .lh{display:flex;justify-content:space-between;align-items:center;font-weight:500;gap:8px}
+.luft .lg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.luft .lg div{display:flex;flex-direction:column;font-size:11px;color:var(--m)}
+.luft .lg b{font:500 15px var(--mono);color:var(--t)}
+.luft .lg small{font-size:10.5px;color:var(--d)}
+.luft .lw{font-size:12px;color:var(--m)}
+.wrap{padding-top:max(20px,env(safe-area-inset-top));padding-left:max(24px,env(safe-area-inset-left));padding-right:max(24px,env(safe-area-inset-right))}
+@media(max-width:640px){.wrap{padding-top:max(14px,env(safe-area-inset-top));padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}.hd .meta{font-size:11px;gap:8px}}
+.hdmeta{align-items:center;gap:10px}
+.cnt{display:inline-flex;gap:6px}
+.btn.icon{padding:6px;line-height:0;color:var(--m)}
+.btn.icon:hover{color:var(--t)}
+.conn span{font:12px var(--mono);color:var(--m)}
+@media(max-width:640px){.hd{align-items:center}.hdmeta{gap:8px}}
+.tt{display:flex;align-items:baseline;gap:10px}
+.tt .ver{font:12px var(--mono);color:var(--d);border:1px solid var(--line);border-radius:99px;padding:1px 8px;letter-spacing:.04em}
+
+/* ===== v2.2: Tema A «Kobber taktil» ===== */
+:root{--bg:#1c1d20;--s:#232428;--s2:#1b1c1f;--line:#2f3136;--grid:transparent;--t:#ece7e1;--m:#9a948d;--d:#615c57;--cy:#d4703c;
+  --ok:#5fbf8f;--warn:#e8c23a;--crit:#ff5a4f;--okb:rgba(95,191,143,.14);--warnb:rgba(232,194,58,.14);--critb:rgba(255,90,79,.15);
+  --raise:6px 6px 14px #121315,-4px -4px 12px #2b2d32;--inset:inset 4px 4px 9px #121315,inset -3px -3px 8px #2b2d32;--edge:1px solid rgba(255,255,255,.03)}
+html,body{background:var(--bg)!important;background-image:none!important;color:var(--t)}
+.wrap{gap:16px}
+.panel{background:var(--s)!important;border:var(--edge)!important;border-radius:16px!important;box-shadow:var(--raise)}
+.ph{font:600 13px var(--gnum)!important;letter-spacing:.16em!important;color:var(--m)}
+.ph small{font:12px var(--sans)!important;letter-spacing:0!important}
+.tt h1{font:500 26px var(--gnum)!important;letter-spacing:.14em!important}
+.v3 .desk{gap:16px}.v3 .col{gap:16px}
+.v3 .g4{border:0!important;background:none!important;overflow:visible!important;gap:16px}
+.v3 .g4 .gauge{border:var(--edge)!important;border-radius:16px;background:var(--s);box-shadow:var(--raise);padding:16px 10px 14px}
+.gauge .gl{font:600 12px var(--gnum)!important;letter-spacing:.18em!important}
+.v3 .map{gap:7px}
+.v3 .map .lbl{font:600 11px var(--gnum)!important;letter-spacing:.18em!important}
+.v3 .map .cell{border-radius:10px;background:var(--s2)!important;box-shadow:var(--inset);border:1px solid transparent!important;font-family:var(--gnum)!important;letter-spacing:.1em!important;font-size:10.5px!important}
+.v3 .map .cell.warn{border-color:var(--warn)!important;background:linear-gradient(180deg,var(--warnb),var(--s2))!important}
+.v3 .map .cell.crit{border-color:var(--crit)!important;background:linear-gradient(180deg,var(--critb),var(--s2))!important}
+.pill{box-shadow:3px 3px 6px #121315,-2px -2px 5px #2b2d32}
+.pill.n{background:var(--s)!important}
+.tag{border-radius:99px!important;padding:3px 9px!important;box-shadow:3px 3px 6px #121315,-2px -2px 5px #2b2d32}
+.zone,.luft,.wx-box,.delta div,.fc .h{border-radius:10px!important;background:var(--s2)!important;box-shadow:var(--inset)}
+.zone{border-top:0!important;position:relative;overflow:hidden}
+.zone::before{content:"";position:absolute;left:0;right:0;top:0;height:3px;background:var(--line)}
+.zone.ok::before{background:var(--ok)}.zone.warn::before{background:var(--warn)}.zone.crit::before{background:var(--crit)}
+.zone .rh{font:400 34px var(--gnum)!important;line-height:1!important}
+.luft{border-left:0!important}
+.phase .tr{background:var(--s2)!important;box-shadow:var(--inset);height:10px!important;border-radius:6px!important}
+.phase .tr i{border-radius:6px!important}
+.btn{background:var(--s)!important;border:var(--edge)!important;box-shadow:var(--raise);border-radius:99px!important}
+.btn.icon{width:34px;height:34px;display:grid;place-items:center;padding:0!important}
+.btn.pri{background:linear-gradient(180deg,#e0824a,#b9572a)!important;color:#1c1d20!important}
+.ver{border-color:var(--line)!important;color:var(--d)!important}
+.banner{border-radius:12px!important}
+dialog{background:var(--s)!important;border:var(--edge)!important;border-radius:16px!important;box-shadow:0 20px 50px rgba(0,0,0,.6)}
+.inp{background:var(--s2)!important;border:1px solid var(--line)!important;box-shadow:var(--inset);border-radius:8px!important}
+.v3 .map .cell.room b{font-size:15px}
+.v3 .map .cell .co2{font:500 12px var(--mono);letter-spacing:0;text-transform:none;color:var(--m);display:flex;align-items:center;gap:4px;white-space:nowrap}
+.v3 .map .cell.warn .co2,.v3 .map .cell.crit .co2{color:var(--t)}
+.tr{font-style:normal;font-size:10px;line-height:1}
+.tr.up{color:var(--warn)}.tr.dn{color:var(--ok)}.tr.fl{color:var(--d)}
+
+/* v2.4 */
+[data-det]{cursor:pointer;transition:transform .12s ease}
+[data-det]:hover{transform:translateY(-1px)}
+@media (prefers-reduced-motion:reduce){[data-det]{transition:none}[data-det]:hover{transform:none}}
+.ev .evg{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ev .evg div{background:var(--s2);box-shadow:var(--inset);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--m)}
+.ev .evg b{font:400 28px var(--gnum);color:var(--t);line-height:1.05}
+.ev .evg b small{font-size:13px;color:var(--m)}
+.c-ok{color:var(--ok)!important}.c-warn{color:var(--warn)!important}.c-crit{color:var(--crit)!important}
+.evbar{position:relative;height:18px;border-radius:9px;background:var(--s2);box-shadow:var(--inset);overflow:hidden}
+.evbar i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#b9572a,#e0824a);opacity:.55;border-radius:9px}
+.ev.warn .evbar i{background:var(--warn)}.ev.crit .evbar i{background:var(--crit)}
+.evbar span{position:relative;font:11px var(--mono);color:var(--t);padding-left:10px;line-height:18px}
+.evk{font-size:12.5px;color:var(--m)}.evk span{color:var(--d)}
+.pbars{display:flex;align-items:flex-end;gap:3px;height:70px;padding:6px;border-radius:10px;background:var(--s2);box-shadow:var(--inset)}
+.pbars i{flex:1;background:linear-gradient(180deg,#e0824a,#b9572a);border-radius:2px 2px 0 0;min-width:2px}
+.pbars i:last-child{background:var(--t)}
+.detdlg{max-width:760px!important;width:calc(100% - 24px)!important;padding:0}
+.detin{padding:18px;display:flex;flex-direction:column;gap:14px}
+.dethd{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.dethd h2{margin:0;flex:1;font:500 18px var(--gnum);letter-spacing:.1em;text-transform:uppercase}
+.seg{display:inline-flex;gap:4px;padding:3px;border-radius:99px;background:var(--s2);box-shadow:var(--inset)}
+.seg button{font:500 12px var(--sans);color:var(--m);background:none;border:0;border-radius:99px;padding:6px 12px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--s);color:var(--t);box-shadow:var(--raise)}
+.detst{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;font-size:12px;color:var(--m)}
+.detst span{background:var(--s2);box-shadow:var(--inset);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column}
+.detst b{font:500 14px var(--mono);color:var(--t)}
+@media(max-width:640px){.ev .evg{gap:6px}.ev .evg div{padding:8px}.ev .evg b{font-size:21px}.detst{grid-template-columns:1fr 1fr}
+  .o-logg{order:1}.o-sik{order:2}.o-ev{order:3}.o-g4{order:4}.o-fukt{order:5}.o-vaer{order:6}.o-graf{order:7}.o-pumpe{order:8}.o-map{order:9}.o-faser{order:10}}
+
+/* v2.5 */
+.kost{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.kost div{background:var(--s2);box-shadow:var(--inset);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--m);min-width:0}
+.kost b{font:400 24px var(--gnum);color:var(--t);line-height:1.1}
+.kost small{font-size:11px;color:var(--d)}
+@media(max-width:640px){.kost{grid-template-columns:1fr}}
+
+/* v2.6 */
+.evbar{height:20px!important;display:flex;align-items:center}
+.evbar i{background:linear-gradient(90deg,#f07a2a,#ff9d4d)!important;opacity:1!important}
+.ev.warn .evbar i{background:var(--warn)!important}.ev.crit .evbar i{background:var(--crit)!important}
+.evbar span{line-height:1!important;font-weight:500;color:#fff!important;text-shadow:0 1px 2px rgba(0,0,0,.55)}
+.tr.nu{color:var(--m)}.tr.svak{opacity:.45;font-size:.8em}.tr.tu{color:#ff8a3d}.tr.td{color:#7fb2e6}
+.zone .zn{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;justify-content:space-between}.zone .zn .pill{white-space:nowrap;flex:none}
+.cell b .tr,.rh .tr,.ex .tr,.wx-box .tr{margin-left:4px;font-size:10px;vertical-align:middle}
+.leg{display:flex;gap:14px;align-items:center;font:12px var(--mono);color:var(--m)}
+.leg i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.phases{display:flex;flex-direction:column;gap:6px}
+.kost div[data-det]{cursor:pointer}
+@media(max-width:640px){.seg button{padding:6px 9px}}
+
+/* v5.3 */
+.tunwrap{width:100%;min-height:300px}.tun{display:block;max-width:100%}
+.tun text{font-family:var(--mono)}
+.tun [data-det]:hover{transform:none;filter:brightness(1.25)}
+@keyframes tpu{0%,100%{opacity:.5}50%{opacity:1}}.tun .pu{animation:tpu 2.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.tun .pu{animation:none}}
+
+.solmane{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.solmane>div{background:var(--s2);box-shadow:var(--inset);border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.solmane .src{font:11px var(--mono);color:var(--m);letter-spacing:.08em;text-transform:uppercase;align-self:flex-start}
+.solmane b{font:400 22px var(--gnum);color:var(--t)}
+.solmane small{font-size:12px;color:var(--m);line-height:1.35}
+.solrad{display:flex;gap:14px;justify-content:center}.solrad span{display:flex;flex-direction:column;align-items:center}
+.fasebar{display:flex;gap:3px;margin-top:2px}.fasebar i{width:9px;height:9px;border-radius:50%;background:#2f3136}.fasebar i.on{background:#ece7e1;box-shadow:0 0 6px rgba(236,231,225,.6)}
+@media(max-width:640px){.o-sol{order:7}}
+
+.wx-box{position:relative}
+.kompass{position:absolute;right:10px;top:10px;width:62px;height:62px}
+.hcw{position:relative}
+.hctip{position:absolute;pointer-events:none;background:#2a2b30;border:1px solid #3a3c42;border-radius:8px;padding:6px 9px;font:12px var(--mono);color:var(--t);white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.45);display:none;z-index:5;transform:translate(-50%,-100%)}
+.hctip b{font-weight:600}.hctip i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+
+.v3 .g4 .gauge{display:flex;flex-direction:column;justify-content:center}
+.o-sik .rows{flex:1;display:flex;flex-direction:column;justify-content:space-between}
+.blist{display:flex;flex-direction:column;gap:6px}
+.blist div{display:grid;grid-template-columns:1fr 130px 52px;gap:10px;align-items:center;font-size:13.5px}
+.blist .bb{height:6px;border-radius:3px;background:var(--s2);box-shadow:var(--inset);overflow:hidden}
+.blist .bb i{display:block;height:100%;border-radius:3px}
+.blist small{color:var(--d);font-size:11.5px;display:block}
+.blist .p{font:500 13px var(--mono);text-align:right}
+
+.pbars.big{height:110px;margin-bottom:8px}
+
+.evrow{display:flex;align-items:center;gap:12px}
+.evrow .evbar{flex:1;height:6px!important;border-radius:3px!important;overflow:visible!important;background:rgba(255,255,255,.07)!important;box-shadow:none!important}
+.evrow .evbar i{height:6px;border-radius:3px!important;box-shadow:0 0 10px rgba(255,138,61,.65),0 0 3px rgba(255,138,61,.9)}
+.ev.warn .evrow .evbar i{box-shadow:0 0 10px rgba(232,194,58,.6)}.ev.crit .evrow .evbar i{box-shadow:0 0 10px rgba(255,90,79,.6)}
+.evrow>span{font:11.5px var(--mono);color:var(--m);white-space:nowrap}
+.row[data-det]{cursor:pointer}
+.vvbt{width:100%;border-collapse:collapse;font:12.5px var(--mono);margin-top:8px}.vvbt th{font:500 11px var(--sans);color:var(--m);text-align:left;padding:4px 6px;border-bottom:1px solid var(--line)}.vvbt td{padding:5px 6px;border-bottom:1px solid #2a2c31;color:var(--t)}.vvbt td:first-child{color:var(--m)}.vvbt th:nth-child(n+3),.vvbt td:nth-child(n+3){text-align:right}
+.evlist{display:flex;flex-direction:column;gap:5px;font-size:12.5px;max-height:240px;overflow:auto}
+.evlist div{display:grid;grid-template-columns:96px 1fr;gap:8px}
+.evlist .t{font-family:var(--mono);color:var(--m)}
+.evlist em{font-style:normal;color:var(--d)}
+</style>
+</head>
+<body>
+<main>
+<section class="v v3 on">
+<div class="wrap">
+  <div class="hd">
+    <div class="tt"><h1 id="title">Anlegg</h1><span class="ver" id="ver">v5.3</span></div>
+    <div class="meta hdmeta">
+      <span id="cnt" class="cnt"></span>
+      <span class="conn" id="conn"><i></i><span>Ikke tilkoblet</span></span>
+      <button class="btn" id="bSet" type="button" aria-label="Innstillinger">Koble til Homey</button>
+    </div>
+  </div>
+  <div class="banner" id="banner" role="status"></div>
+  <div class="desk" id="desk"></div>
+</div>
+</section>
+</main>
+
+<dialog id="dlg">
+  <form id="dlgForm" method="dialog">
+    <h2>Innstillinger <span style="color:var(--d);font-size:12px;letter-spacing:0">v5.3</span></h2>
+    <p>Nøkkel, posisjon og navn lagres bare i denne nettleseren på denne enheten. De står ikke i fila på GitHub.</p>
+    <label for="fName">Navn på dashbordet (valgfritt)
+      <input class="inp" id="fName" name="fName" autocomplete="off" placeholder="f.eks. Hjemme">
+    </label>
+    <label for="fLocal">Lokal adresse hjemme (valgfritt)
+      <input class="inp" id="fLocal" name="fLocal" autocomplete="off" placeholder="IP-adressen til Homey, f.eks. 192.168.68.50">
+    </label>
+    <label for="fBase">Sky-adresse
+      <input class="inp" id="fBase" name="fBase" autocomplete="off" placeholder="http://192.168.1.50">
+    </label>
+    <label for="fPos">Posisjon for vær, sol og måne (valgfritt)
+      <input class="inp" id="fPos" name="fPos" autocomplete="off" placeholder="breddegrad, lengdegrad · f.eks. 59.91, 10.75">
+    </label>
+    <label for="fSted">Stedsnavn (valgfritt)
+      <input class="inp" id="fSted" name="fSted" autocomplete="off" placeholder="f.eks. hjemme">
+    </label>
+    <label for="fRom">Romnavn (valgfritt)
+      <input class="inp" id="fRom" name="fRom" autocomplete="off" placeholder="Soverom 1, Soverom 2, Soverom 3">
+    </label>
+    <label for="fKey">API-nøkkel (lesetilgang)
+      <input class="inp" id="fKey" name="fKey" type="password" autocomplete="off" placeholder="lim inn nøkkelen">
+    </label>
+    <div class="dlgbtns">
+      <button class="btn" id="dlgForget" type="button">Glem nøkkel</button>
+      <span style="display:flex;gap:8px"><button class="btn" id="dlgCancel" type="button">Avbryt</button><button class="btn pri" type="submit">Lagre og koble til</button></span>
+    </div>
+  </form>
+</dialog>
+<dialog id="det" class="detdlg">
+  <div class="detin">
+    <div class="dethd"><h2 id="detTitle">Detaljer</h2>
+      <div class="seg" role="group" aria-label="Periode"><button type="button" data-r="lastHour" aria-pressed="false">1 t</button><button type="button" data-r="last12Hours" aria-pressed="false">12 t</button><button type="button" data-r="last24Hours" aria-pressed="true">24 t</button><button type="button" data-r="last7Days" aria-pressed="false">7 døgn</button><button type="button" data-r="last31Days" aria-pressed="false">30 døgn</button></div>
+      <button class="btn" id="detClose" type="button">Lukk</button></div>
+    <div id="detBody"></div>
+  </div>
+</dialog>
+<script>
+/* ================= Homey Dashbord v1.4 – levende data ================= */
+const VERSION='v5.3';
+// Personlige opplysninger (posisjon, stedsnavn, romnavn) lagres bare lokalt på enheten – aldri i fila
+const PRIV=(()=>{ try{ return JSON.parse(localStorage.getItem('anlegg.priv')||'{}'); }catch(e){ return {}; } })();
+let LAT=+PRIV.lat||null, LON=+PRIV.lon||null; const STED=()=>PRIV.sted||'';
+const RN=k=>(PRIV.rom&&PRIV.rom[k])||({stue:'Stue',martine:'Soverom 1',jm:'Soverom 2',julie:'Soverom 3',loftstue:'Loftstue'})[k]||k;
+
+/* Enhets-ID-er fra Homey */
+const ID={
+  led:'73c9134b-68e6-4329-9df2-af34f9a963b2', katteluke:'f4bab299-a6b5-44a9-8447-c55ff50a09e2',
+  pulse:'5185db17-27ee-4ab1-aa35-5b400a0b6017', easee:'0b1c770b-9a21-462f-bfab-b24a1f0fb61d',
+  ute:'b4e718ce-4411-4991-add2-67ee6d2aed05', vind:'6bf7284f-c5be-4cd2-a0e0-d69d2c943134',
+  garasje:'d99bbf63-99aa-4ad4-ae18-5865c506df70', hevda:'1d2250ac-902c-485a-ace6-56cc174f11ec',
+  loe:'094ea773-72e8-4b71-a583-64fe5844540e', snekker:'7d0b1e4b-518a-4466-9fb2-fb57dad12c49',
+  stue:'d6e44d4d-3b2e-4c8d-9b12-0528caa8e5cd', jm:'2c1ce211-d605-422b-9cbe-b1d65be224a4',
+  julie:'2e411208-5bd2-46f1-be1b-1fb2dd9eb6ac', martine:'f1376a81-3ff0-43f3-9f6c-6a94b40cc153',
+  loftstue:'885aab64-9f31-4fc0-8a03-be449ca06a75', vent:'6ec1e65c-3b82-4102-a5ad-b86628d34ab2',
+  pumpe:'8a35f44d-7210-474d-8470-fc130f2011b2', port:'7110c171-b560-475a-8618-ae5d5a8abacd',
+  dorLoe:'564d8a93-5b58-4626-84aa-366b5ffb5440', vann:'fec3d8e5-9c6f-4d98-9a71-3a4f56bff0c3',
+  bev:'ce4dca7f-8c29-4d04-991f-5e9364dd85e6'
+};
+
+/* Grenser (valgt i intervjuet) */
+const STILLE_T=2; // timer uten rapport før sensor regnes som falt ut
+const STILLE_SENS=['pulse','ute','vind','garasje','hevda','loe','snekker','stue','jm','julie','martine','loftstue','vent'];
+const PUMPE_W=300; // KP150 lensepumpe, watt når den går
+const LIM={rhWarn:70, rhCrit:80, co2Warn:1000, co2Crit:1400, batt:25, portMin:15, portHour:22, dorFra:22, dorTil:8, step:5, ventStop:10};
+
+/* ---------- Tilstand ---------- */
+const S={lastOk:null,histSrc:'snap',histErr:null,stepSrc:'snap',mode:'snap', time:new Date(), dev:{}, lastUpd:{}, batt:[], hist:{}, step:null, yr:null, err:null};
+
+/* ---------- Hjelpere ---------- */
+const C={ok:'#5fbf8f',warn:'#e8c23a',crit:'#ff5a4f',cy:'#d4703c'};
+const f=(v,d=1)=>(v==null||isNaN(v))?'–':Number(v).toFixed(d).replace('.',',');
+const dew=(t,rh)=>{if(t==null||rh==null)return null;const a=17.62,b=243.12,g=Math.log(rh/100)+a*t/(b+t);return b*g/(a-g)};
+const rhSt=rh=>rh==null?'n':rh>LIM.rhCrit?'crit':rh>LIM.rhWarn?'warn':'ok';
+const co2St=v=>v==null?'n':v>=LIM.co2Crit?'crit':v>=LIM.co2Warn?'warn':'ok';
+const lblSt={ok:'OK',info:'Fuktig',warn:'Fuktkilde',crit:'Kondens',n:'–'};
+/* Fukt i uoppvarmede bygg: farge bare når noe bør gjøres.
+   crit = kondensfare (RF ≥ 90 % eller duggpunkt < 1 °C under lufta)
+   warn = fuktkilde (mer enn 1,5 g/m³ mer vann i lufta inne enn ute i minst 2 t)
+   info = fuktig (≥ 80 %, normalt for årstiden) · ok = under 80 % */
+const FUKT={rfKondens:90, duggMargin:1.0, kildeAH:1.5, kildeMin:120, rfFuktig:80};
+const FK_MEM=(()=>{ try{ return JSON.parse(localStorage.getItem('anlegg.fuktkilde')||'{}'); }catch(e){ return {}; } })();
+function fuktSt(id){
+  const t=v(id,'measure_temperature'), rh=v(id,'measure_humidity'); if(rh==null) return {s:'n'};
+  const dp=t!=null?dew(t,rh):null, margin=dp!=null?t-dp:null;
+  const tU=v(ID.ute,'measure_temperature'), rU=v(ID.ute,'measure_humidity');
+  const dAH=(t!=null&&tU!=null&&rU!=null)?absFukt(t,rh)-absFukt(tU,rU):null;
+  // hvor lenge har fuktkilden vart (huskes per enhet)
+  const now=Date.now();
+  if(dAH!=null&&dAH>FUKT.kildeAH){ if(!FK_MEM[id]) FK_MEM[id]=now; } else delete FK_MEM[id];
+  try{ localStorage.setItem('anlegg.fuktkilde',JSON.stringify(FK_MEM)); }catch(e){}
+  const kildeMin=FK_MEM[id]?(now-FK_MEM[id])/60000:0;
+  if(rh>=FUKT.rfKondens||(margin!=null&&margin<FUKT.duggMargin)) return {s:'crit',rh,t,dp,margin,dAH,why:`kondensfare – RF ${f(rh,0)} %, duggpunkt ${f(margin,1)} °C under lufta`};
+  if(dAH!=null&&dAH>FUKT.kildeAH&&kildeMin>=FUKT.kildeMin) return {s:'warn',rh,t,dp,margin,dAH,why:`fuktkilde – ${f(dAH,1)} g/m³ mer vann i lufta inne enn ute i ${varTxt(kildeMin*60000)}`};
+  if(rh>=FUKT.rfFuktig) return {s:'info',rh,t,dp,margin,dAH};
+  return {s:'ok',rh,t,dp,margin,dAH};
+}
+const v=(id,cap)=>S.dev[id]?.[cap];
+const tz='Europe/Oslo';
+const hhmm=d=>new Intl.DateTimeFormat('nb-NO',{timeZone:tz,hour:'2-digit',minute:'2-digit'}).format(d);
+const dato=d=>new Intl.DateTimeFormat('nb-NO',{timeZone:tz,day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
+const dirTxt=a=>a==null?'':['N','NØ','Ø','SØ','S','SV','V','NV'][Math.round(((a%360)+360)%360/45)%8];
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,val){try{localStorage.setItem(k,val)}catch(e){}},del(k){try{localStorage.removeItem(k)}catch(e){}}};
+
+function spark(data,color,{h=40,min,max,thr}={}){
+  if(!data||data.length<2) return '<div class="nohist">Ingen historikk</div>';
+  const w=300,lo=min??Math.min(...data),hi=max??Math.max(...data),sp=(hi-lo)||1,p=3;
+  const x=i=>p+i*(w-2*p)/(data.length-1),y=val=>h-p-(Math.min(Math.max(val,lo),hi)-lo)/sp*(h-2*p);
+  const d=data.map((q,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(q).toFixed(1)}`).join('');
+  const id='g'+Math.random().toString(36).slice(2,8);
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="width:100%;height:${h}px;display:block" aria-hidden="true">
+   <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".3"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+   ${thr!=null?`<line x1="0" x2="${w}" y1="${y(thr)}" y2="${y(thr)}" stroke="${color}" stroke-opacity=".4" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>`:''}
+   <path d="${d}L${x(data.length-1)},${h}L${x(0)},${h}Z" fill="url(#${id})"/>
+   <path d="${d}" fill="none" stroke="${color}" stroke-width="1.6" vector-effect="non-scaling-stroke"/>
+   <circle cx="${x(data.length-1)}" cy="${y(data.at(-1))}" r="2.5" fill="${color}"/></svg>`;
+}
+function ring(val,min,max,{unit,color,marks=[],dec=1}){
+  /* Måler i «glød»-stil (fra tema B): tynn lysende bue med lyspunkt */
+  const r=56,cx=75,cy=75,a0=225,sw=270,fr=val==null?0:Math.min(1,Math.max(0,(val-min)/(max-min)));
+  const pt=(a,rr=r)=>{const q=(a-90)*Math.PI/180;return[cx+rr*Math.cos(q),cy+rr*Math.sin(q)]};
+  const arc=(s,e)=>{const[x0,y0]=pt(s),[x1,y1]=pt(e);return `M${x0},${y0}A${r},${r} 0 ${e-s>180?1:0} 1 ${x1},${y1}`};
+  const end=Math.max(a0+.5,a0+sw*fr),[kx,ky]=pt(end), id='r'+Math.random().toString(36).slice(2,7);
+  const tk=marks.map(m=>{const a=a0+sw*(m-min)/(max-min),[x0,y0]=pt(a,r-8),[x1,y1]=pt(a,r+8);return `<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#9a948d" stroke-width="1.4"/>`}).join('');
+  return `<svg viewBox="0 0 150 150" role="img" aria-label="${f(val,dec)} ${unit}"><defs><filter id="${id}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="3.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+   <circle cx="75" cy="75" r="67" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="1"/>
+   <path d="${arc(a0,a0+sw)}" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="5" stroke-linecap="round"/>
+   ${val==null?'':`<path d="${arc(a0,end)}" fill="none" stroke="${color}" stroke-width="5" stroke-linecap="round" filter="url(#${id})"/>`}${tk}
+   ${val==null?'':`<circle cx="${kx}" cy="${ky}" r="4.8" fill="#fff" opacity=".92" filter="url(#${id})"/>`}
+   <text x="75" y="83" text-anchor="middle" fill="#ece7e1" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-weight="300" font-size="40">${f(val,dec)}</text>
+   <text x="75" y="104" text-anchor="middle" fill="#9a948d" font-family="IBM Plex Mono, monospace" font-size="10.5">${unit}</text></svg>`;
+}
+const gauge=(l,svg,ft)=>`<div class="gauge"><div class="gl">${l}</div>${svg}<div class="gf num">${ft}</div></div>`;
+const rm=(n,val,sub,st='')=>`<div class="rm ${st}"><span>${n}</span><b class="num">${val}</b><span class="num">${sub}</span></div>`;
+
+
+/* ---------- Løe: dør + bevegelse (skiller person fra katt) ---------- */
+const PERSON_FOR_MIN=10, PERSON_ETTER_MIN=2;
+function tolkBevegelse(t){
+  const d=(S.doorEv||[]).some(o=>{const x=o.getTime(), m=t.getTime(); return x>=m-PERSON_FOR_MIN*60000 && x<=m+PERSON_ETTER_MIN*60000;});
+  return d?'person':'katt';
+}
+const tidTxt=t=>(dato(t)===dato(new Date())?'':(dato(t)===dato(new Date(Date.now()-86400000))?'i går ':dato(t).slice(0,5)+' '))+hhmm(t);
+function loeTekst(){
+  const m=S.motion||[], d=S.doorEv||[];
+  const lm=m.length?m[m.length-1]:S.lastUpd[ID.bev+':alarm_motion'];
+  const ld=d.length?d[d.length-1]:null;
+  return {lm, ld, tolk: lm&&m.length?tolkBevegelse(lm):null};
+}
+
+/* ---------- Trend for alle målinger (endring siste 30 min) ---------- */
+const TREND_MIN=30;
+// Trend = stigningstall (lineær regresjon) over et vindu, regnet om til endring over hele vinduet.
+// Temperatur og fukt endrer seg sakte → 2 t vindu; CO₂ endrer seg raskt → 30 min.
+const TREND_DEF={measure_temperature:{thr:0.4,unit:'°C',dec:1,bad:false,min:120},measure_humidity:{thr:3,unit:'%',dec:0,bad:true,min:120},measure_co2:{thr:30,unit:'ppm',dec:0,bad:true,min:30}};
+const trendTxt=m=>m>=60?(m/60)+' t':m+' min';
+function trendList(){
+  const L=[];
+  ['stue','martine','jm','julie','loftstue','garasje','hevda','loe','snekker','ute'].forEach(k=>L.push([ID[k],'measure_temperature']));
+  ['stue','martine','jm','julie'].forEach(k=>L.push([ID[k],'measure_co2']));
+  ['garasje','hevda','loe','snekker','ute'].forEach(k=>L.push([ID[k],'measure_humidity']));
+  return L;
+}
+function arrow(id,cap){
+  const d=S.trend?.[id+':'+cap], D=TREND_DEF[cap]; if(d==null||!D) return '';
+  const tt=`${d>0?'+':''}${f(d,D.dec)} ${D.unit} siste ${trendTxt(D.min)}`;
+  // Alltid retning: tydelig pil ved klar endring, svak pil ved liten endring.
+  // Står kurven helt flatt i vinduet, brukes retningen over 6 timer.
+  let dd=d; if(Math.abs(dd)<1e-9){ const d6=S.trend6?.[id+':'+cap]; if(d6!=null) dd=d6; }
+  if(Math.abs(dd)<1e-9) return `<i class="tr fl" title="Helt flatt: ${tt}">▶</i>`;
+  const opp=dd>0, sterk=Math.abs(d)>=D.thr, cls=opp?(D.bad?'up':'tu'):(D.bad?'dn':'td');
+  return `<i class="tr ${cls}${sterk?'':' svak'}" title="${opp?'Stigende':'Synkende'}${sterk?'':' (litt)'}: ${tt}">${opp?'▲':'▼'}</i>`;
+}
+
+/* Romrute med temperatur + CO₂ og trendpil (CO₂-endring siste 30 min) */
+const CO2_TREND_MIN=30, CO2_TREND_PPM=30;
+function roomCell(n,key){
+  const id=ID[key], t=v(id,'measure_temperature'), c=v(id,'measure_co2'), st=co2St(c);
+  return `<div class="cell room ${st==='n'?'':st}" style="grid-column:span 2" data-det="${id}|measure_co2|CO₂ ${n}|ppm|1000"><span>${n}</span><b class="num">${f(t)}°${arrow(id,'measure_temperature')}</b><span class="co2 num">${c??'–'} ppm${arrow(id,'measure_co2')}</span></div>`;
+}
+/* Rute med temperatur + fukt og trend (Løe, garasje) */
+function zoneCell(n,key,span=2){
+  const id=ID[key], t=v(id,'measure_temperature'), rh=v(id,'measure_humidity'), st=fuktSt(id).s;
+  return `<div class="cell room ${st==='n'||st==='ok'||st==='info'?'':st}" style="grid-column:span ${span}" data-det="${id}|measure_humidity|Fukt ${n}|%|90"><span>${n}</span><b class="num">${f(t)}°${arrow(id,'measure_temperature')}</b><span class="co2 num">${f(rh,0)} %${arrow(id,'measure_humidity')}</span></div>`;
+}
+const cell=(n,val,st,span)=>`<div class="cell ${st}" style="grid-column:span ${span}"><span>${n}</span><b class="num">${val}</b></div>`;
+
+
+/* ---------- Effektvakt: snitt så langt denne timen og prognose ---------- */
+function effektvakt(){
+  const now=Date.now(), hs=Math.floor(now/3600000)*3600000, el=(now-hs)/60000, nowW=v(ID.pulse,'measure_power');
+  if(nowW==null) return null;
+  let eMin=0, cov=0, lastEnd=hs;
+  (S.pw5||[]).forEach(b=>{const t=b.t.getTime(); if(t>=hs && t+300000<=now+60000){ eMin+=b.v*5; cov+=5; lastEnd=Math.max(lastEnd,t+300000);} });
+  const live=(S.pwLive||[]).filter(x=>x.t>=lastEnd);
+  if(live.length){ const a=live.reduce((s,x)=>s+x.w,0)/live.length, m=Math.max(0,(now-lastEnd)/60000); eMin+=a*m; cov+=m; }
+  if(cov<1){ eMin=nowW*Math.max(el,1); cov=Math.max(el,1); }
+  const avg=eMin/cov, rest=Math.max(0,60-el);
+  const proj=(avg*el+nowW*rest)/60;
+  const allowed=rest>1?(LIM.step*1000*60-avg*el)/rest:null;
+  const st=proj>LIM.step*1000?'crit':proj>LIM.step*1000*0.9?'warn':'ok';
+  return {avg,proj,allowed,el,rest,st};
+}
+/* ---------- Priser (fra Lyse-faktura oktober 2026, alle inkl. mva) ----------
+   Strøm: Norgespris 50,00 øre + påslag Lyse 5,90 øre/kWh + 55 kr/mnd.
+   Nettleie KE Nett fra 1.10.2026: energiledd dag 30,00 / natt 16,25 øre,
+   forbruksavgift 8,91 og Enova 1,25 øre/kWh, effektledd 0–5 kW 262,50 kr/mnd.
+   Dag = hverdager kl. 06–22, natt = resten, helg og helligdager. */
+const TARIFF={norgespris:50.00, paslag:5.90, lyseMnd:55.00,
+  nettDag:30.00, nettNatt:16.25, avgift:8.91+1.25,
+  effekt:[[5,262.50]] /* [øvre grense kW, kr/mnd]. Pris over 5 kW er ikke kjent ennå */};
+const HELLIG=new Set(['2026-01-01','2026-04-02','2026-04-03','2026-04-06','2026-05-01','2026-05-14','2026-05-17','2026-05-25','2026-12-25','2026-12-26',
+  '2027-01-01','2027-03-25','2027-03-26','2027-03-29','2027-05-01','2027-05-06','2027-05-17','2027-12-25','2027-12-26']);
+const _osl=new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false,weekday:'short'});
+function oslo(d){const o={};_osl.formatToParts(d).forEach(p=>o[p.type]=p.value);return {dato:`${o.year}-${o.month}-${o.day}`,time:Number(o.hour)%24,uke:o.weekday};}
+function erDag(d){const o=oslo(d); if(o.uke==='Sat'||o.uke==='Sun'||HELLIG.has(o.dato)) return false; return o.time>=6&&o.time<22;}
+const strOre=()=>TARIFF.norgespris+TARIFF.paslag;
+const nettOre=dag=>(dag?TARIFF.nettDag:TARIFF.nettNatt)+TARIFF.avgift;
+function effektKr(kw){ for(const [g,k] of TARIFF.effekt) if(kw<g) return k; return null; }
+/* Summer kWh og kroner fra en liste med {t,v(W)} der hver post dekker «min» minutter */
+function kostFra(arr,min,fra,til){
+  let kD=0,kN=0;
+  (arr||[]).forEach(e=>{const t=e.t.getTime(); if(t<fra||t>=til) return; const kwh=e.v*min/60/1000; if(erDag(e.t)) kD+=kwh; else kN+=kwh;});
+  return {kD,kN,kwh:kD+kN, strom:(kD+kN)*strOre()/100, nett:(kD*nettOre(true)+kN*nettOre(false))/100};
+}
+// Bøtter med ukjent oppløsning (Homey bytter fra 1 t til 6 t utover i måneden): fordel hver bøtte time for time
+function kostBotter(arr,fra,til){
+  let kD=0,kN=0; const a=(arr||[]).filter(e=>e&&e.v!=null).sort((x,y)=>x.t-y.t); if(!a.length) return null;
+  const d=[]; for(let i=1;i<a.length;i++) d.push(a[i].t-a[i-1].t); d.sort((x,y)=>x-y);
+  const step=d.length?d[Math.floor(d.length/2)]:3600000;
+  a.forEach(e=>{ const t0=e.t.getTime(), t1=t0+step;
+    for(let h=t0; h<t1; h+=3600000){ const s0=Math.max(h,fra), s1=Math.min(h+3600000,t1,til); if(s1<=s0) continue;
+      const kwh=e.v*(s1-s0)/3600000/1000; if(erDag(new Date(s0))) kD+=kwh; else kN+=kwh; } });
+  return {kD,kN,kwh:kD+kN,strom:(kD+kN)*strOre()/100,nett:(kD*nettOre(true)+kN*nettOre(false))/100,step};
+}
+function kostnad(){
+  const now=new Date(), o=oslo(now);
+  const dagStart=now.getTime()-((o.time*60+now.getMinutes())*60000+now.getSeconds()*1000);
+  const dim=new Date(now.getFullYear(),now.getMonth()+1,0).getDate(), dagNr=now.getDate();
+  const kw=S.step?.avg, eff=kw!=null?effektKr(kw):TARIFF.effekt[0][1];
+  const fastDag=(TARIFF.lyseMnd+(eff||0))/dim;
+  // I dag: 5-min data fra Insights + sanntid etter siste bøtte
+  const td=kostFra(S.pw5,5,dagStart,now.getTime()+1);
+  const lastEnd=(S.pw5&&S.pw5.length)?S.pw5[S.pw5.length-1].t.getTime()+300000:dagStart;
+  const live=(S.pwLive||[]).filter(x=>x.t>=Math.max(lastEnd,dagStart));
+  if(live.length){const a=live.reduce((s,x)=>s+x.w,0)/live.length, m=(now.getTime()-Math.max(lastEnd,dagStart))/60000, kwh=a*m/60/1000, dag=erDag(now);
+    if(dag) td.kD+=kwh; else td.kN+=kwh; td.kwh+=kwh; td.strom+=kwh*strOre()/100; td.nett+=kwh*nettOre(dag)/100;}
+  if(!td.kwh){ const k=v(ID.pulse,'meter_power'); if(k==null) return null; td.kwh=k; td.strom=k*strOre()/100; td.nett=k*nettOre(true)/100; td.approx=true; }
+  // Hittil i måneden: timesnitt fra Insights (thisMonth)
+  const mStart=new Date(now.getFullYear(),now.getMonth(),1).getTime();
+  // Tidligere dager fra månedsbøtter + i dag fra 5-min-data (månedsbøttene henger opptil 6 t etter)
+  const fo=S.pwMonth?kostBotter(S.pwMonth,mStart,dagStart):null;
+  const mn=fo?{kD:fo.kD+td.kD,kN:fo.kN+td.kN,kwh:fo.kwh+td.kwh,strom:fo.strom+td.strom,nett:fo.nett+td.nett}:null;
+  const var_m=mn?mn.strom+mn.nett:null;
+  const fastM=TARIFF.lyseMnd+(eff||0);
+  const elapsed=(now.getTime()-mStart)/86400000;
+  const prog=var_m!=null&&elapsed>0.5?var_m/elapsed*dim+fastM:null;
+  return {td, dagSum:td.strom+td.nett+fastDag, fastDag, mn, mndSum:var_m!=null?var_m+fastM*(dagNr/dim):null, prog, eff, kw};
+}
+const kr1=x=>x.toLocaleString('nb-NO',{minimumFractionDigits:1,maximumFractionDigits:1});
+const kr0=x=>Math.round(x).toLocaleString('nb-NO');
+const kr=x=>x.toLocaleString('nb-NO',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+const minF=x=>x==null?'–':(x>0&&x<1?f(x,1):String(Math.round(x)));
+function pumpeStat(){ const d=S.pumpeDag; if(!d||!d.length) return null;
+  const last=d[d.length-1][1], prev=d.slice(0,-1), avg=d.reduce((a,x)=>a+x[1],0)/d.length;
+  const avgPrev=prev.length?prev.reduce((a,x)=>a+x[1],0)/prev.length:0, mx=Math.max(...d.map(x=>x[1]));
+  const unormal=last>15||(last>5&&last>3*avgPrev);
+  return {d,last,avg,avgPrev,mx,unormal}; }
+function pumpeBars(d,cls){ const mx=Math.max(5,...d.map(x=>x[1]));
+  return `<div class="pbars ${cls||''}">${d.map(([dd,m])=>`<i title="${dd}: ${minF(m)} min" style="height:${Math.max(2,m/mx*100)}%"></i>`).join('')}</div>`; }
+function stilleSensorer(){ if(!S.sist) return []; const now=Date.now();
+  return STILLE_SENS.map(k=>ID[k]).filter(id=>S.sist[id]).map(id=>[S.navn[id]||id,(now-S.sist[id])/3600000]).filter(([,h])=>h>=STILLE_T); }
+
+/* ---------- Avvik beregnes fra data ---------- */
+function alerts(){
+  const A=[], now=S.time;
+  const dl=v(ID.dorLoe,'measure_battery'); if(dl!=null&&dl<=2) A.push(['crit','Dørsensor Løe – batteri '+f(dl,0)+' %, ingen status']);
+  [['Garasje',ID.garasje],['Hevdaløa',ID.hevda],['Løe inngang',ID.loe],['Snekkerbod',ID.snekker]].forEach(([n,id])=>{
+    const F=fuktSt(id); if(F.s==='crit'||F.s==='warn') A.push([F.s,`${n}: ${F.why}`]);
+  });
+  const open=v(ID.port,'alarm_contact');
+  if(open===true){
+    const since=S.lastUpd[ID.port+':alarm_contact'], mins=since?Math.round((now-since)/60000):null;
+    const hr=Number(new Intl.DateTimeFormat('nb-NO',{timeZone:tz,hour:'2-digit',hour12:false}).format(now));
+    if((mins!=null&&mins>LIM.portMin)||hr>=LIM.portHour||hr<6) A.push(['crit',`Garasjeport åpen${mins!=null?' i '+mins+' min':''}`]);
+    else A.push(['warn','Garasjeport åpen']);
+  }
+  { const E=effektvakt(); if(E&&E.el>=10){ if(E.st==='crit') A.push(['crit',`Effektvakt: timen går mot ${f(E.proj/1000,2)} kW – over ${LIM.step} kW`]); else if(E.st==='warn') A.push(['warn',`Effektvakt: timen går mot ${f(E.proj/1000,2)} kW`]); } }
+  if(v(ID.dorLoe,'alarm_contact')===true){ const since=S.lastUpd[ID.dorLoe+':alarm_contact'];
+    const p=new Intl.DateTimeFormat('nb-NO',{timeZone:tz,hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(now), hr=+p.find(x=>x.type==='hour').value%24, mi=+p.find(x=>x.type==='minute').value;
+    const iVindu=hr>=LIM.dorFra||hr<LIM.dorTil, etter22=hr>=LIM.dorFra?(hr-LIM.dorFra)*60+mi:(hr+24-LIM.dorFra)*60+mi;
+    const apen=since?(now-since)/60000:null;
+    if(iVindu&&apen!=null&&Math.min(apen,etter22)>=60) A.push(['crit',`Dør Løe åpen i ${Math.round(apen)} min (etter kl. ${LIM.dorFra})`]); }
+  if(v(ID.vann,'alarm_water')===true) A.push(['crit','Vannlekkasje i Løe!']);
+  if(S.step&&S.step.avg!=null){const r=LIM.step-S.step.avg; if(S.step.avg>=LIM.step) A.push(['crit',`Effekttrinn ${f(S.step.avg,2)} kW – over ${LIM.step} kW`]); else if(r<1) A.push(['warn',`Effekttrinn ${f(S.step.avg,2)} kW – ${f(r,2)} kW til neste trinn`]);}
+  ['martine','jm','julie','stue'].forEach(k=>{const c=v(ID[k],'measure_co2'),st=co2St(c); if(st==='warn'||st==='crit') A.push([st,`CO₂ ${RN(k)} ${c} ppm`]);});
+  const vw=v(ID.vent,'measure_power'); if(vw!=null&&vw<LIM.ventStop) A.push(['crit',`Ventilasjon ser ut til å ha stoppet (${f(vw,0)} W)`]);
+  const pw=v(ID.pumpe,'measure_power'); if(pw!=null&&pw>50) A.push(['warn',`Lensepumpe går nå (${f(pw,0)} W)`]);
+  { const P=pumpeStat(); if(P&&P.unormal) A.push([P.last>30?'crit':'warn',`Lensepumpe har gått ${minF(P.last)} min i dag (snitt ${minF(P.avgPrev)} min/døgn)`]); }
+  stilleSensorer().forEach(([n,h])=>A.push(['warn',`${n} har ikke rapportert på ${h<48?Math.round(h)+' t':Math.round(h/24)+' døgn'}`]));
+  S.batt.filter(([n,b])=>b>2||!/Løe/.test(n)).forEach(([n,b])=>{ if(!(n.startsWith('Dør sensor Løe')&&b<=2)) A.push(['warn',`${n} – batteri ${f(b,0)} %`]); });
+  return A.sort((a,b)=>(a[0]==='crit'?0:1)-(b[0]==='crit'?0:1));
+}
+
+/* ---------- Tegning ---------- */
+function render(){
+  const A=alerts(), nC=A.filter(a=>a[0]==='crit').length, nW=A.length-nC;
+  const P=ID.pulse, kw=(v(P,'measure_power')??0)/1000, L=[v(P,'measure_current.L1'),v(P,'measure_current.L2'),v(P,'measure_current.L3')];
+  const Lsum=L.reduce((a,b)=>a+(b||0),0), L1share=Lsum?Math.round((L[0]||0)/Lsum*100):null;
+  const gT=v(ID.garasje,'measure_temperature'), gRH=v(ID.garasje,'measure_humidity');
+  const hT=v(ID.hevda,'measure_temperature'), hRH=v(ID.hevda,'measure_humidity');
+  const co2M=v(ID.martine,'measure_co2'), co2Top=S.hist.co2M?Math.max(...S.hist.co2M):null;
+  const uteT=v(ID.ute,'measure_temperature'), uteRH=v(ID.ute,'measure_humidity');
+  const wind=v(ID.vind,'measure_wind_strength'), gust=v(ID.vind,'measure_gust_strength'), wdir=v(ID.vind,'measure_wind_angle');
+  const ms=k=>k==null?null:k/3.6;
+  const portOpen=v(ID.port,'alarm_contact')===true;
+  const dorDead=(v(ID.dorLoe,'measure_battery')??100)<=2;
+  const pumpeMax=S.hist.pumpeMax;
+
+  document.getElementById('cnt').innerHTML=S.mode!=='live'?'':(nC||nW)?`${nC?`<span class="pill crit">${nC} alarm</span>`:''}${nW?`<span class="pill warn">${nW} varsel</span>`:''}`:'<span class="pill ok">Ingen avvik</span>';
+  if(S.mode==='live'){const today=dato(new Date())===dato(S.time); conn('live','Live · '+(S.via?S.via+' · ':'')+(today?'':dato(S.time).slice(0,5)+' ')+hhmm(S.time));}
+
+  const fuktZ=[['Garasje',ID.garasje,'garasje'],['Hevdaløa',ID.hevda,'hevda'],['Løe inngang',ID.loe,'loe'],['Snekkerbod',ID.snekker,null]];
+  const fuktHTML=fuktZ.map(([n,id,h])=>{const t=v(id,'measure_temperature'),rh=v(id,'measure_humidity'),F=fuktSt(id),s=F.s, vt=S.vaattid&&S.vaattid[id];
+    return `<div class="zone ${s==='info'?'':s}" data-det="${id}|measure_humidity|Fukt ${n}|%|90"><div class="zn"><span>${n}</span><span class="pill ${s==='n'||s==='info'?'n':s}">${lblSt[s]}</span></div>
+      <div class="rh num">${f(rh,0)}<small> %</small>${arrow(id,'measure_humidity')}</div><div class="ex num">${f(t)} °C${arrow(id,'measure_temperature')} · duggpunkt ${f(dew(t,rh))} °C</div>
+      ${F.dAH!=null?`<div class="ex num">${F.dAH>=0?'+':''}${f(F.dAH,1)} g/m³ mot ute</div>`:''}
+      ${h&&S.hist[h]?spark(S.hist[h],(s==='info'||s==='ok')?'#8d877f':(C[s]||C.cy),{min:50,max:100,thr:FUKT.rfKondens}):'<div class="nohist">Ingen kurve</div>'}</div>`}).join('');
+
+  const easeeSt=v(ID.easee,'evcharger_charging_state'), easeeTxt=easeeSt==='plugged_out'?'Ikke tilkoblet':easeeSt==='plugged_in_charging'?'Lader':easeeSt?String(easeeSt).replace(/_/g,' '):(v(ID.easee,'charger_status')||'–');
+  const portSince=S.lastUpd[ID.port+':alarm_contact'];
+
+  const yr=S.yr;
+  let vaer;
+  if(yr){
+    const dT=uteT!=null?uteT-yr.now.t:null, dRH=uteRH!=null?uteRH-yr.now.rh:null, dW=wind!=null?ms(wind)-yr.now.w:null;
+    vaer=`<div class="panel o-vaer"><div class="ph">Vær<small>egne sensorer og Yr${STED()?' · '+esc(STED()):''}${LAT==null?' · legg inn posisjon i innstillinger':''}</small></div>
+      <div class="wx-now">
+        <div class="wx-box">${kompass(wdir)}<span class="src">Egne sensorer</span><span class="t num">${f(uteT)} °C${arrow(ID.ute,'measure_temperature')}</span><span class="d num">${f(uteRH,0)} % · ${f(ms(wind))} m/s (kast ${f(ms(gust))}) ${dirTxt(wdir)}</span></div>
+        <div class="wx-box">${kompass(yr.now.dir)}<span class="src">Yr nå</span><span class="t num">${f(yr.now.t)} °C</span><span class="d num">${f(yr.now.rh,0)} % · ${f(yr.now.w)} m/s ${dirTxt(yr.now.dir)} · ${f(yr.now.p)} mm</span></div>
+      </div>
+      <div class="fc">${yr.fc.map(h=>`<div class="h"><span>${h.h}</span>${icon(h.sym)}<b>${f(h.t)}°</b></div>`).join('')}</div>
+      <div class="foot">KILDE: MET NORGE / YR · OPPDATERT ${hhmm(yr.upd)}</div></div>`;
+  } else {
+    vaer=`<div class="panel o-vaer"><div class="ph">Vær<small>egne sensorer og Yr</small></div>
+      <div class="wx-now"><div class="wx-box">${kompass(wdir)}<span class="src">Egne sensorer</span><span class="t num">${f(uteT)} °C${arrow(ID.ute,'measure_temperature')}</span><span class="d num">${f(uteRH,0)} % · ${f(ms(wind))} m/s ${dirTxt(wdir)}</span></div>
+      <div class="wx-box"><span class="src">Yr</span><span class="t">–</span><span class="d">${S.yrErr?esc(S.yrErr):'Henter prognose …'}</span></div></div></div>`;
+  }
+
+  document.getElementById('desk').innerHTML=`
+   <div class="col">
+     <div class="panel o-map"><div class="ph">Eiendom<small>trykk på et rom eller symbol</small></div>
+      <div class="tunwrap" style="min-height:${TUN.H||300}px">${TUN.W?tunetSvg(TUN.W,TUN.H):''}</div>
+</div>
+     <div class="panel o-logg"><div class="ph">Aktive avvik<small>${hhmm(S.time)}</small></div><div class="log">
+      ${A.length?avvikVarighet(A).map(([s,t,va])=>`<div><span class="t" title="Aktivt i ${va}">${va}</span><span class="tag ${s}">${s==='crit'?'ALARM':'VARSEL'}</span><span>${esc(t)}</span></div>`).join(''):'<div><span class="t"></span><span class="tag ok">OK</span><span>Ingen avvik</span></div>'}
+     </div></div>
+     ${solMaanePanel()}
+   </div>
+   <div class="col center">
+     <div class="g4 o-g4">
+       ${gauge('Effekt nå',ring(kw,0,6,{unit:'kW',color:C.cy,marks:[LIM.step],dec:2}),`L1 ${f(L[0])} · L2 ${f(L[1])} · L3 ${f(L[2])} A`).replace('<div class="gauge"','<div class="gauge" data-det="PHASES|energy_power|Effekt og faser|W|5000"')}
+       ${gauge('Effekttrinn',ring(S.step?.avg,0,LIM.step,{unit:'kW av '+LIM.step,color:(S.step?.avg??0)>=LIM.step?C.crit:(LIM.step-(S.step?.avg??0))<1?C.warn:C.ok,dec:2}),S.stepSrc==='live'?'Snitt 3 høyeste døgn':'Venter på data')}
+       ${gauge('Garasje fukt',ring(gRH,40,100,{unit:'% RF',color:({crit:C.crit,warn:C.warn,info:'#9a948d',ok:C.ok})[fuktSt(ID.garasje).s]||C.cy,marks:[FUKT.rfFuktig,FUKT.rfKondens],dec:0}),`dugg ${f(dew(gT,gRH))} °C · trend ${arrow(ID.garasje,'measure_humidity')||'–'}`).replace('<div class="gauge"','<div class="gauge" data-det="'+ID.garasje+'|measure_humidity|Fukt garasje|%|70"')}
+       ${gauge('Hevdaløa fukt',ring(hRH,40,100,{unit:'% RF',color:({crit:C.crit,warn:C.warn,info:'#9a948d',ok:C.ok})[fuktSt(ID.hevda).s]||C.cy,marks:[FUKT.rfFuktig,FUKT.rfKondens],dec:0}),`dugg ${f(dew(hT,hRH))} °C · trend ${arrow(ID.hevda,'measure_humidity')||'–'}`).replace('<div class="gauge"','<div class="gauge" data-det="'+ID.hevda+'|measure_humidity|Fukt Hevdaløa|%|70"')}
+     </div>
+     ${(()=>{const E=effektvakt(), K=kostnad(); if(!E||S.mode!=='live') return '';
+       const pct=Math.min(100,E.el/60*100), al=E.allowed;
+       return `<div class="panel o-ev ev ${E.st}"><div class="ph">Effektvakt<small>denne timen · grense ${LIM.step} kW</small></div>
+       <div class="evg num">
+         <div><span>Snitt hittil</span><b>${f(E.avg/1000,2)}<small> kW</small></b></div>
+         <div><span>Prognose timen</span><b class="c-${E.st}">${f(E.proj/1000,2)}<small> kW</small></b></div>
+         <div><span>Rom resten av timen</span><b>${E.rest<5||al==null?'–<small> timen slutter</small>':al<=0?'<span class="c-crit">0</span><small> kW</small>':al/1000>25?'&gt; 25<small> kW</small>':f(al/1000,1)+'<small> kW</small>'}</b></div>
+       </div>
+       <div class="evrow"><div class="evbar"><i style="width:${pct}%"></i></div><span class="num">${Math.round(E.el)} av 60 min</span></div>
+       ${K?`<div class="kost num">
+         <div data-det="${ID.pulse}|energy_power|Effekt i dag|W|5000"><span>I dag</span><b>${kr1(K.dagSum)} kr</b><small>${f(K.td.kwh,1)} kWh · strøm ${kr1(K.td.strom)} · nett ${kr1(K.td.nett)} · fast ${kr1(K.fastDag)}</small></div>
+         ${K.mndSum!=null?`<div><span>Hittil i måneden</span><b>${kr0(K.mndSum)} kr</b><small>${f(K.mn.kwh,0)} kWh · ${f(K.mn.kD/(K.mn.kwh||1)*100,0)} % dag</small></div>`:''}
+         ${K.prog!=null?`<div><span>Prognose måned</span><b>${kr0(K.prog)} kr</b><small>${K.eff!=null?'Effekt 0–5 kW · '+kr(K.eff)+' kr':'Over 5 kW – pris ukjent'}</small></div>`:''}
+       </div>
+       <div class="foot">STRØM ${f(strOre(),2)} ØRE · NETT DAG ${f(nettOre(true),2)} / NATT ${f(nettOre(false),2)} ØRE · INKL. MVA OG AVGIFTER · NÅ: ${erDag(new Date())?'DAGPRIS':'NATTPRIS'}</div>`:''}
+       </div>`})()}
+     ${vaer}
+   </div>
+   <div class="col">
+     <div class="panel o-sik"><div class="ph">Sikkerhet<small>nå</small></div><div class="rows">
+       <div class="row" data-det="EV|port|Garasjeport|"><span class="nm">Garasjeport</span><span class="pill ${portOpen?'warn':'ok'}">${portOpen?'Åpen':'Lukket'}</span><span class="dt">${portSince?(portOpen?'Åpnet ':'Lukket ')+tidTxt(portSince)+' · ':''}varsel ved åpen &gt; ${LIM.portMin} min eller etter kl. ${LIM.portHour}</span></div>
+       <div class="row" data-det="EV|loe|Løe – dør og bevegelse|"><span class="nm">Dør Løe</span><span class="pill ${dorDead?'crit':v(ID.dorLoe,'alarm_contact')?'warn':'ok'}">${dorDead?'Ingen kontakt':(v(ID.dorLoe,'alarm_contact')?'Åpen':'Lukket')}</span><span class="dt">${(()=>{const L=loeTekst(); return (L.ld?'Sist åpnet '+tidTxt(L.ld):'Ikke åpnet siste 24 t')+' · batteri '+f(v(ID.dorLoe,'measure_battery'),0)+' %';})()}</span></div>
+       <div class="row" data-det="EV|vann|Vannlekkasje Løe|"><span class="nm">Vannlekkasje Løe</span><span class="pill ${v(ID.vann,'alarm_water')?'crit':'ok'}">${v(ID.vann,'alarm_water')?'LEKKASJE':'Tørt'}</span><span class="dt">Batteri ${f(v(ID.vann,'measure_battery'),0)} %</span></div>
+       <div class="row" data-det="EV|loe|Løe – dør og bevegelse|"><span class="nm">Bevegelse Løe</span>${(()=>{const L=loeTekst(), aktiv=v(ID.bev,'alarm_motion')===true; return `<span class="pill ${aktiv?(L.tolk==='person'?'warn':'n'):'n'}">${aktiv?(L.tolk==='person'?'Person?':'Bevegelse'):'Ingen'}</span><span class="dt">${L.lm?'Siste '+tidTxt(L.lm)+(L.tolk?(L.tolk==='person'?' · med døråpning – trolig person':' · uten døråpning – trolig katt'):''):'Ingen bevegelse siste 24 t'}</span>`;})()}</div>
+       <div class="row" data-det="PUMPE|energy_power|Lensepumpe|W|"><span class="nm">Lensepumpe</span><span class="pill ${(v(ID.pumpe,'measure_power')??0)>50?'warn':(pumpeStat()?.unormal?'warn':'ok')}">${(v(ID.pumpe,'measure_power')??0)>50?'Går':'Hvile'}</span><span class="dt">${(()=>{const P=pumpeStat(); if(!P) return pumpeMax!=null?(pumpeMax>50?'Har gått siste 24 t':'Ikke startet siste 24 t'):''; return `I dag ${minF(P.last)} min · snitt ${minF(P.avg)} min/døgn · maks ${minF(P.mx)} min (30 d)`;})()}</span></div>
+       <div class="row" data-det="${ID.easee}|energy_power|Easee-lader|W|"><span class="nm">Easee-lader</span><span class="pill n">${esc(easeeTxt)}</span><span class="dt">Siste lading ${f(v(ID.easee,'meter_power.lastCharge'))} kWh</span></div>
+       <div class="row" data-det="BATT||Batterier – alle enheter||"><span class="nm">Batterier</span><span class="pill ${S.batt.length?'warn':'ok'}">${S.batt.length?S.batt.length+' lav'+(S.batt.length===1?'t':'e'):'Alle OK'}</span><span class="dt">${S.batt.map(([n,b])=>esc(n)+' '+f(b,0)+' %').join(' · ')||'Alle over '+LIM.batt+' % · trykk for oversikt'}</span></div>
+     </div></div>
+     <div class="panel o-fukt"><div class="ph">Fukt og rust<small>rød kondens · gul fuktkilde</small></div>
+       ${(()=>{const L=luftVurdering(); if(!L) return ''; return `<div class="luft ${L.st}"><div class="lh"><span>Lufting garasje</span><span class="pill ${L.st}">${L.txt}</span></div>
+         <div class="lg num"><div><span>Inne</span><b>${f(L.aI,1)}</b><small>g/m³</small></div><div><span>Ute</span><b>${f(L.aU,1)}</b><small>g/m³</small></div><div><span>Forskjell</span><b>${(L.d>0?'+':'')+f(L.d,1)}</b><small>g/m³</small></div><div><span>Port</span><b>${L.apen?'Åpen':'Lukket'}</b><small>&nbsp;</small></div></div>
+         <div class="lw">${esc(L.why)}</div></div>`})()}
+       <div class="zones two">${fuktHTML}</div></div>
+   </div>`;
+}
+
+function jevnTopp(){
+  const cols=[...document.querySelectorAll('#desk > .col')], first=cols.map(c=>c.firstElementChild).filter(Boolean);
+  tegnTunet();
+  if(window.innerWidth<=1100||first.length<3){ first.forEach(e=>{ if(e.style.minHeight) e.style.minHeight=''; }); return; }
+  const nat=first.map(e=>{const mh=e.style.minHeight; e.style.minHeight=''; const h=e.getBoundingClientRect().height; e.style.minHeight=mh; return h;});
+  const h=Math.max(...nat); first.forEach(e=>{ if(e.style.minHeight!==h+'px') e.style.minHeight=h+'px'; });
+}
+window.addEventListener('resize',()=>requestAnimationFrame(jevnTopp));
+function blankIfOffline(){
+  const desk=document.getElementById('desk'), off=S.mode!=='live';
+  desk.classList.toggle('nodata',off);
+  if(!off) return;
+  desk.querySelectorAll('.pill').forEach(e=>{e.textContent='–';e.className='pill n';});
+  desk.querySelectorAll('.cell').forEach(e=>{e.className='cell';const b=e.querySelector('b');if(b)b.textContent='–';});
+  desk.querySelectorAll('.zone').forEach(e=>e.className='zone');
+  const lg=desk.querySelector('.o-logg .log'); if(lg) lg.innerHTML='<div><span class="t"></span><span class="tag n">–</span><span>Ikke tilkoblet</span></div>';
+}
+function icon(sym=''){
+  const cloud='<path d="M7 17h10a4 4 0 0 0 0-8 5 5 0 0 0-9.6 1.5A3.3 3.3 0 0 0 7 17z" fill="none" stroke="currentColor" stroke-width="1.5"/>';
+  const sun='<circle cx="12" cy="12" r="4" fill="none" stroke="#f0b13c" stroke-width="1.5"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" stroke="#f0b13c" stroke-width="1.5"/>';
+  const moon='<path d="M15 4a7 7 0 1 0 5 11A6 6 0 0 1 15 4z" fill="none" stroke="#9cc3dc" stroke-width="1.5"/>';
+  const part='<circle cx="9" cy="9" r="3.2" fill="none" stroke="#f0b13c" stroke-width="1.5"/><path d="M9 19h9a3.5 3.5 0 0 0 0-7 4.5 4.5 0 0 0-8.4 1.2A3 3 0 0 0 9 19z" fill="#132230" stroke="currentColor" stroke-width="1.5"/>';
+  const drops='<path d="M9 19l-1 2.5M13 19l-1 2.5M17 19l-1 2.5" stroke="#5fc8e8" stroke-width="1.5"/>';
+  const flakes='<path d="M9 20h.01M13 21h.01M17 20h.01" stroke="#d9e6ef" stroke-width="2.5" stroke-linecap="round"/>';
+  const cl=cloud.replace('17h10','15h10').replace('0 0 0 7 17z','0 0 0 7 15z');
+  let p;
+  if(/snow/.test(sym)) p=cl+flakes; else if(/sleet/.test(sym)) p=cl+drops+flakes;
+  else if(/rain|shower/.test(sym)) p=cl+drops; else if(/fog/.test(sym)) p='<path d="M4 10h16M4 14h16M6 18h12" stroke="currentColor" stroke-width="1.5"/>';
+  else if(/clearsky/.test(sym)) p=/night/.test(sym)?moon:sun; else if(/fair|partlycloudy/.test(sym)) p=part; else p=cloud;
+  return `<svg viewBox="0 0 24 24" aria-hidden="true">${p}</svg>`;
+}
+
+
+function staleCheck(){
+  if(!S.lastOk) return;
+  const min=Math.round((Date.now()-S.lastOk)/60000);
+  if(min>=2){ const b=document.getElementById('banner'); banner('err',`<b>Dataene er ${min} min gamle.</b> Siste vellykkede oppdatering kl. ${hhmm(S.lastOk)}. Prøver igjen automatisk.`); b.dataset.stale='1'; document.getElementById('desk').classList.add('stale'); }
+}
+setInterval(staleCheck,30000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible'&&cfg().base&&cfg().key){ loadDevices().then(()=>{render();conn('live','Live');hideBanner();}).catch(()=>staleCheck()); loadYr(); }});
+
+/* Lufting garasje – samme formel og grenser som HomeyScript garasje_lufting v1.4 */
+const LUFT={AH_START:1.0,AH_STOPP:0.3,RF_START:65,RF_STOPP:58,MIN_T:4};
+const absFukt=(t,rf)=>{const ps=6.112*Math.exp((17.67*t)/(t+243.5));return ps*rf*2.1674/(273.15+t)};
+function luftVurdering(){
+  const tI=v(ID.garasje,'measure_temperature'), rI=v(ID.garasje,'measure_humidity'), tU=v(ID.ute,'measure_temperature'), rU=v(ID.ute,'measure_humidity');
+  if([tI,rI,tU,rU].some(x=>x==null)) return null;
+  const aI=absFukt(tI,rI), aU=absFukt(tU,rU), d=aI-aU, apen=v(ID.port,'alarm_contact')===true;
+  const lonner=d>=LUFT.AH_START&&rI>=LUFT.RF_START&&tI>=LUFT.MIN_T;
+  const hjelperIkke=d<LUFT.AH_STOPP||rI<LUFT.RF_STOPP||tI<LUFT.MIN_T-1;
+  let st,txt;
+  if(lonner&&!apen){st='ok';txt='Luft nå';}
+  else if(lonner&&apen){st='ok';txt='Lufter – la stå';}
+  else if(apen&&hjelperIkke){st='warn';txt='Lukk porten';}
+  else if(rI<LUFT.RF_START){st='n';txt='Ikke behov';}
+  else {st='n';txt='Ikke nå';}
+  const why = rI<LUFT.RF_START?`Fukt inne ${f(rI,0)} % – under ${LUFT.RF_START} %`
+            : tI<LUFT.MIN_T?`For kaldt i garasjen (${f(tI)} °C)`
+            : d<0?`Uteluften er ${f(-d,1)} g/m³ fuktigere enn inne – ikke luft`
+            : d<LUFT.AH_START?`Uteluften er bare ${f(d,1)} g/m³ tørrere – trenger ${f(LUFT.AH_START,1)}`
+            : `Uteluften er ${f(d,1)} g/m³ tørrere`;
+  return {st,txt,why,aI,aU,d,apen};
+}
+
+function setTitle(){const n=store.get('homey.name');document.getElementById('title').textContent=n||'Anlegg';document.title=n||'Anlegg';}
+const _render=render; render=function(){
+  const se=document.scrollingElement||document.documentElement, y=se.scrollTop;
+  _render(); blankIfOffline(); jevnTopp();
+  if(Math.abs(se.scrollTop-y)>1) se.scrollTop=y;           // samme posisjon etter oppdatering
+  requestAnimationFrame(()=>{ jevnTopp(); if(Math.abs(se.scrollTop-y)>1) se.scrollTop=y; });
+};
+/* ---------- Henting fra Homey ---------- */
+function cfg(){return {base:S.base||(store.get('homey.base')||'').replace(/\/+$/,''), cloud:(store.get('homey.base')||'').replace(/\/+$/,''), local:store.get('homey.local')||'', key:store.get('homey.key')||''}}
+/* Lokal adresse: IP gjøres om til Homeys lokale https-navn (ip-med-bindestrek.homey.homeylocal.com),
+   fordi en https-side ikke får lov å kalle http://192.168… direkte. */
+function localUrl(x){ x=String(x).trim().replace(/\/+$/,''); if(/^https?:\/\//.test(x)) return x;
+  if(/^(\d{1,3}\.){3}\d{1,3}$/.test(x)) return 'https://'+x.replace(/\./g,'-')+'.homey.homeylocal.com'; return 'https://'+x; }
+async function pickBase(){
+  const {cloud,local,key}=cfg(); S.via='sky'; S.base=cloud;
+  if(!local) return;
+  const u=localUrl(local), ac=new AbortController(), to=setTimeout(()=>ac.abort(),2500);
+  try{ const r=await fetch(u+'/api/manager/zones/zone/',{headers:{Authorization:'Bearer '+key},signal:ac.signal}); if(r.ok){ S.base=u; S.via='lokal'; } }
+  catch(e){} finally{ clearTimeout(to); }
+}
+async function hget(path){
+  const {base,key}=cfg();
+  let r;
+  try{ r=await fetch(base+path,{headers:{Authorization:'Bearer '+key}}); }
+  catch(e){ const err=new Error('NETT'); err.kind='net'; throw err; }
+  if(r.status===401||r.status===403){const err=new Error('Nøkkel avvist ('+r.status+')');err.kind='auth';throw err;}
+  if(!r.ok){const err=new Error('HTTP '+r.status);err.kind='http';throw err;}
+  return r.json();
+}
+let INS_OK=null; // husker hvilken URL-variant Homey godtar
+async function insights(devId,cap,res){
+  const full=`homey:device:${devId}:${cap}`, uri=`homey:device:${devId}`;
+  const variants=[
+    `/api/manager/insights/log/${uri}/${full}/entry?resolution=${res}`,
+    `/api/manager/insights/log/${encodeURIComponent(uri)}/${encodeURIComponent(full)}/entry?resolution=${res}`,
+    `/api/manager/insights/log/${full}/entry?resolution=${res}`,
+    `/api/manager/insights/log/${encodeURIComponent(full)}/entry?resolution=${res}`,
+    `/api/manager/insights/log/${uri}/${cap}/entry?resolution=${res}`,
+    `/api/manager/insights/log/${encodeURIComponent(uri)}/${cap}/entry?resolution=${res}`
+  ];
+  const order=INS_OK!=null?[INS_OK,...variants.keys()].filter((x,i,a)=>a.indexOf(x)===i):[...variants.keys()];
+  let last='ingen data';
+  for(const i of order){
+    try{ const j=await hget(variants[i]); const arr=Array.isArray(j)?j:(j.values||j.entries||[]);
+      if(arr.length){ INS_OK=i; return arr.map(e=>({t:new Date(e.t),v:e.v})).filter(e=>e.v!=null); }
+      last='tom logg';
+    }catch(e){ last=e.kind==='auth'?'Homey svarte '+e.message.replace(/\D/g,'')+' – mangler nøkkelen «Vis Insights»?':e.kind==='net'?'ingen kontakt':e.message; if(e.kind==='auth') break; }
+  }
+  const err=new Error(last); err.kind='ins'; throw err;
+}
+const hourly=arr=>{ if(!arr) return null; const m=new Map(); arr.forEach(({t,v:val})=>{const k=Math.floor(t.getTime()/3600000); const o=m.get(k)||{s:0,n:0}; o.s+=val;o.n++; m.set(k,o)}); return [...m.entries()].sort((a,b)=>a[0]-b[0]).slice(-24).map(([,o])=>o.s/o.n); };
+
+async function loadDevices(){
+  const j=await hget('/api/manager/devices/device/');
+  const dev={}, lu={}, batt=[], nm={}, sist={}, alle=[];
+  Object.values(j).forEach(d=>{
+    const caps={}; Object.entries(d.capabilitiesObj||{}).forEach(([k,o])=>{caps[k]=o?.value; if(o?.lastUpdated) lu[d.id+':'+k]=new Date(o.lastUpdated);});
+    dev[d.id]=caps; nm[d.id]=d.name; sist[d.id]=Math.max(0,...Object.values(d.capabilitiesObj||{}).map(o=>o?.lastUpdated?new Date(o.lastUpdated).getTime():0));
+    if(typeof caps.measure_battery==='number') alle.push({n:d.name,b:caps.measure_battery,t:d.capabilitiesObj.measure_battery.lastUpdated?new Date(d.capabilitiesObj.measure_battery.lastUpdated):null,ubrukt:/^UBRUKT/i.test(d.name||'')});
+    const b=caps.measure_battery; if(typeof b==='number'&&b<LIM.batt&&!/^UBRUKT/i.test(d.name||'')) batt.push([d.name,b]);
+  });
+  { const w=dev[ID.pulse]?.measure_power; if(typeof w==='number'){ const now=Date.now(), hs=Math.floor(now/3600000)*3600000; S.pwLive=(S.pwLive||[]).filter(x=>x.t>=hs); S.pwLive.push({t:now,w}); } }
+  S.dev=dev; S.lastUpd=lu; S.navn=nm; S.sist=sist; S.alleBatt=alle.sort((a,b)=>a.b-b.b); S.batt=batt.sort((a,b)=>a[1]-b[1]); S.time=new Date(); S.lastOk=S.time; S.mode='live'; document.getElementById('desk').classList.remove('stale');
+}
+function vaattidPanel(id){
+  const vt=S.vaattid&&S.vaattid[id], D=(S.vaattidDag&&S.vaattidDag[id])||[];
+  if(vt==null) return `<div class="ph" style="margin-top:12px">Våttid</div><div class="evk">Beregnes – vises innen et par minutter.</div>`;
+  const aar=vt*52, kl=aar<=10?['τ1','svært lav']:aar<=250?['τ2','lav']:aar<=2500?['τ3','middels']:aar<=5500?['τ4','høy']:['τ5','svært høy'];
+  const bars=D.map(([d,h])=>`<div style="display:grid;grid-template-columns:52px 1fr 52px;gap:10px;align-items:center;font:12.5px var(--mono);margin:3px 0"><span style="color:var(--m)">${d}</span><span style="height:8px;border-radius:4px;background:var(--s2);box-shadow:var(--inset);overflow:hidden"><i style="display:block;height:100%;width:${Math.min(100,h/24*100)}%;background:${h>=20?C.warn:'#9cc3dc'};border-radius:4px"></i></span><span style="text-align:right">${f(h,0)} t</span></div>`).join('');
+  return `<div class="ph" style="margin-top:12px">Våttid<small>siste 7 døgn</small></div>
+   <div class="evk num" style="font-size:14px;color:var(--t)">${f(vt,0)} timer av 168 · ${Math.round(vt/168*100)} % av tiden</div>${bars}
+   <div class="evk" style="line-height:1.55;margin-top:10px">
+    <b style="color:var(--t)">Hva betyr det?</b> Våttid er antall timer der relativ fukt er over 80 % og temperaturen over 0 °C. Da legger det seg en tynn, usynlig fuktfilm på metall, og det er i den rust dannes. Begrepet kommer fra korrosjonsstandarden ISO 9223.<br>
+    <b style="color:var(--t)">Hvordan lese tallet:</b> Fortsetter det slik hele året, blir det ca. ${f(aar,0)} t/år – klasse <b style="color:var(--t)">${kl[0]} (${kl[1]})</b>. Skalaen: τ1 under 10 t · τ2 10–250 · τ3 250–2 500 · τ4 2 500–5 500 · τ5 over 5 500 t/år. Om vinteren ligger de fleste uoppvarmede bygg på Jæren høyt; det viktige er om tallet går ned eller opp fra uke til uke.<br>
+    <b style="color:var(--t)">Hva senker våttiden:</b> noen grader varme (ofte 3–5 °C over ute er nok til å komme under 80 %), en avfukter, lufting når uteluften er tørrere (se Lufting garasje), og å fjerne smeltevann. Olje eller voks på verktøy og bilunderstell beskytter der fukten ikke lar seg fjerne.${S.vaattidStep>40*60000?`<br><em>Grov oppløsning fra Homey (${Math.round(S.vaattidStep/60000)} min per punkt) – tallene er omtrentlige.</em>`:''}
+   </div>`;
+}
+async function loadVaattid(){
+  if(S.vaattidT&&Date.now()-S.vaattidT<3600000) return; S.vaattidT=Date.now(); S.vaattid=S.vaattid||{};
+  await Promise.all([ID.garasje,ID.hevda,ID.loe,ID.snekker].map(async id=>{ try{
+    const [h,t]=await Promise.all([insights(id,'measure_humidity','last7Days'),insights(id,'measure_temperature','last7Days')]);
+    if(!h||h.length<2) return; const tt=(t||[]).slice().sort((a,b)=>a.t-b.t);
+    const step=(h[h.length-1].t-h[0].t)/(h.length-1); let ms=0, j=0; const dag={};
+    h.forEach(e=>{ while(j<tt.length-1&&tt[j+1].t<=e.t) j++; const T=tt.length?tt[j].v:5; const d=dato(e.t).slice(0,5); dag[d]=dag[d]||0;
+      if(e.v>80&&T>0){ ms+=step; dag[d]+=step/3600000; } });
+    S.vaattid[id]=ms/3600000; S.vaattidDag=S.vaattidDag||{}; S.vaattidDag[id]=Object.entries(dag).slice(-7); S.vaattidStep=step; }catch(e){} }));
+}
+async function loadHistory(){
+  loadVaattid().then(()=>render()).catch(()=>{});
+  const R=await Promise.allSettled([
+    insights(ID.pulse,'energy_power','last24Hours'),
+    insights(ID.garasje,'measure_humidity','last24Hours'),
+    insights(ID.hevda,'measure_humidity','last24Hours'),
+    insights(ID.loe,'measure_humidity','last24Hours'),
+    insights(ID.martine,'measure_co2','last24Hours'),
+    insights(ID.pumpe,'energy_power','last24Hours'),
+    insights(ID.pulse,'energy_power','thisMonth')
+  ]);
+  /* Trend for alle målinger */
+  const TL=trendList();
+  const RT=await Promise.allSettled(TL.map(([id,cap])=>insights(id,cap,'last6Hours')));
+  const tr={}, tr6={};
+  RT.forEach((r,i)=>{ if(r.status!=='fulfilled'||!r.value||r.value.length<2) return;
+    const D=TREND_DEF[TL[i][1]], win=(D?D.min:TREND_MIN)*60000, t1=Date.now(), t0=t1-win;
+    const p=r.value.filter(e=>e.v!=null&&e.t.getTime()>=t0); if(p.length<3) return;
+    // minste kvadraters stigning (enhet per ms) × vinduets lengde = endring over vinduet
+    const n=p.length, xs=p.map(e=>e.t.getTime()-t0), ys=p.map(e=>e.v), mx=xs.reduce((a,b)=>a+b)/n, my=ys.reduce((a,b)=>a+b)/n;
+    let sxy=0,sxx=0; for(let k=0;k<n;k++){ sxy+=(xs[k]-mx)*(ys[k]-my); sxx+=(xs[k]-mx)**2; }
+    if(sxx>0) tr[TL[i][0]+':'+TL[i][1]]=sxy/sxx*win;
+    // reserve: retning over hele 6-timersvinduet
+    const q=r.value.filter(e=>e.v!=null); if(q.length>2) tr6[TL[i][0]+':'+TL[i][1]]=q[q.length-1].v-q[0].v; });
+  S.trend6=tr6;
+  S.trend=tr;
+  /* Maks/min ute siste 24 t (inkl. nåverdi) */
+  try{ const u=await insights(ID.ute,'measure_temperature','last24Hours');
+    if(u&&u.length){ const nu=v(ID.ute,'measure_temperature'), a=nu!=null?[...u,{t:new Date(),v:nu}]:u;
+      S.uteMax=a.reduce((x,e)=>e.v>x.v?e:x); S.uteMin=a.reduce((x,e)=>e.v<x.v?e:x); } }catch(e){}
+  /* Bevegelse Løe siste 24 t */
+  try{ const m=await insights(ID.bev,'alarm_motion','last24Hours'); if(m) S.motion=m.filter(e=>e.v===true||e.v===1).map(e=>e.t); }catch(e){}
+  try{ const d=await insights(ID.dorLoe,'alarm_contact','last24Hours'); if(d) S.doorEv=d.filter(e=>e.v===true||e.v===1).map(e=>e.t); }catch(e){}
+  const [pw,ga,he,lo,co,pu,mo]=R.map(r=>r.status==='fulfilled'?r.value:null);
+  if(pw) S.pw5=pw;
+  try{ const p31=await insights(ID.pumpe,'energy_power','last31Days'); if(p31){ const df=new Intl.DateTimeFormat('nb-NO',{timeZone:tz,day:'2-digit',month:'2-digit'}); const m=new Map(), hrs=new Map();
+      p31.forEach(({t,v:val})=>{const k=Math.floor(t.getTime()/3600000);const o=hrs.get(k)||{s:0,n:0};o.s+=val;o.n++;hrs.set(k,o);});
+      hrs.forEach((o,k)=>{const d=df.format(new Date(k*3600000)); m.set(d,(m.get(d)||0)+ (o.s/o.n)/PUMPE_W*60);});
+      S.pumpeDag=[...m.entries()].slice(-30); } }catch(e){}
+  const okN=R.filter(r=>r.status==='fulfilled').length;
+  S.histSrc=okN?'live':'snap'; S.histErr=okN?null:(R[0].reason?.message||'ukjent feil');
+  const h={...S.hist};
+  if(pw) h.power=hourly(pw);
+  if(ga) h.garasje=hourly(ga); if(he) h.hevda=hourly(he); if(lo) h.loe=hourly(lo); if(co) h.co2M=hourly(co);
+  if(pu) h.pumpeMax=Math.max(...pu.map(e=>e.v));
+  S.hist=h;
+  if(mo&&mo.length){ // effekttrinn: høyeste timesnitt per døgn, snitt av tre høyeste døgn
+    const hrs=new Map(); mo.forEach(({t,v:val})=>{const k=Math.floor(t.getTime()/3600000);const o=hrs.get(k)||{s:0,n:0};o.s+=val;o.n++;hrs.set(k,o)});
+    const day=new Map(); const df=new Intl.DateTimeFormat('nb-NO',{timeZone:tz,day:'2-digit',month:'2-digit'}); const hf=new Intl.DateTimeFormat('nb-NO',{timeZone:tz,hour:'2-digit'});
+    hrs.forEach((o,k)=>{const d=new Date(k*3600000),dk=df.format(d),kwv=o.s/o.n/1000; const cur=day.get(dk); if(!cur||kwv>cur.k) day.set(dk,{k:kwv,lbl:dk+' kl. '+hf.format(d)});});
+    const top=[...day.values()].sort((a,b)=>b.k-a.k).slice(0,3);
+    S.pwMonth=mo;
+    if(top.length) S.stepSrc='live', S.step={avg:top.reduce((a,b)=>a+b.k,0)/top.length, top:top.map(x=>[x.lbl,x.k])};
+  }
+}
+async function loadYr(){
+  try{
+    if(LAT==null||LON==null) return;
+    const r=await fetch(`https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${LAT.toFixed(3)}&lon=${LON.toFixed(3)}`);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(), ts=j.properties.timeseries;
+    const d0=ts[0].data, i0=d0.instant.details;
+    S.yr={upd:new Date(),
+      now:{t:i0.air_temperature,rh:i0.relative_humidity,w:i0.wind_speed,dir:i0.wind_from_direction,p:d0.next_1_hours?.details?.precipitation_amount??0},
+      fc:ts.slice(1,9).map(e=>({h:hhmm(new Date(e.time)).slice(0,2),t:e.data.instant.details.air_temperature,sym:e.data.next_1_hours?.summary?.symbol_code||''}))};
+    S.yrErr=null;
+  }catch(e){ S.yrErr='Fikk ikke kontakt med Yr ('+e.message+')'; }
+  render();
+}
+
+function banner(kind,html){const b=document.getElementById('banner'); b.className='banner on'+(kind==='err'?' err':''); b.innerHTML=html;}
+function hideBanner(){document.getElementById('banner').className='banner';}
+function conn(st,txt){const c=document.getElementById('conn'); c.className='conn '+st; c.lastElementChild.textContent=txt;
+  const b=document.getElementById('bSet'), on=st==='live';
+  b.classList.toggle('icon',on);
+  b.innerHTML=on?'<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>':(st==='wait'?'Kobler til …':'Koble til Homey');
+}
+
+let tDev=null,tHist=null,tYr=null;
+async function start(){
+  clearInterval(tDev);clearInterval(tHist);
+  const {base,key}=cfg();
+  if(!base||!key){ S.mode='snap'; conn('','Ikke tilkoblet'); banner('',`Ikke tilkoblet. Trykk <b>Koble til Homey</b> og legg inn adresse og API-nøkkel. Nøkkelen lagres bare på denne enheten.`); render(); return; }
+  conn('wait','Kobler til …');
+  try{
+    await pickBase();
+    await loadDevices(); render(); hideBanner(); conn('live','Live');
+    loadHistory().then(()=>{render(); if(S.histSrc!=='live') banner('',`<b>Live-verdier virker, men historikken mangler.</b> Insights: ${esc(S.histErr)}. Kurvene og effekttrinnet er derfor ikke oppdatert.`);}).catch(e=>console.warn('Insights',e));
+    tDev=setInterval(async()=>{try{if(!S.base||Date.now()-(S.pickedAt||0)>600000){await pickBase();S.pickedAt=Date.now();} await loadDevices();render();conn('live','Live');if(document.getElementById('banner').dataset.stale){hideBanner();delete document.getElementById('banner').dataset.stale;}}catch(e){S.base=null;conn('err','Mistet kontakt');document.getElementById('desk').classList.add('stale');staleCheck();}},15000);
+    tHist=setInterval(()=>loadHistory().then(render).catch(()=>{}),300000);
+  }catch(e){
+    S.mode='snap'; conn('err','Feil'); render();
+    if(e.kind==='auth') banner('err',`<b>Homey avviste nøkkelen.</b> Sjekk at du limte inn hele nøkkelen, og at den har «Vis enheter» og «Vis Insights».`);
+    else if(e.kind==='net') banner('err',`<b>Fikk ikke kontakt med Homey på <code>${esc(base)}</code>.</b> Enten er adressen feil, du er ikke på hjemmenettet, eller Homey blokkerer kall fra nettleseren (CORS). Prøv å åpne <code>${esc(base)}/api/manager/system/ping</code> i nettleseren – svarer den, er det CORS, og da trengs et lite mellomledd. `);
+    else banner('err',`<b>Feil fra Homey:</b> ${esc(e.message)}`);
+  }
+}
+
+
+/* ---------- Detaljvisning ved trykk ---------- */
+let DET=null;
+/* ---------- Sol og måne ---------- */
+const POS={get lat(){return LAT},get lon(){return LON}};
+const rad=Math.PI/180;
+function solOppNed(dato0){ // NOAA, zenith 90.833
+  const res={}; const y=dato0.getFullYear(), m=dato0.getMonth(), d=dato0.getDate();
+  const N=Math.floor((Date.UTC(y,m,d)-Date.UTC(y,0,0))/86400000), lh=POS.lon/15;
+  [['opp',6],['ned',18]].forEach(([k,h0])=>{
+    const t=N+((h0-lh)/24), M=0.9856*t-3.289;
+    let L=(M+1.916*Math.sin(M*rad)+0.020*Math.sin(2*M*rad)+282.634+360)%360;
+    let RA=Math.atan(0.91764*Math.tan(L*rad))/rad; RA=(RA+360)%360; RA+= (Math.floor(L/90)*90-Math.floor(RA/90)*90); RA/=15;
+    const sd=0.39782*Math.sin(L*rad), cd=Math.cos(Math.asin(sd));
+    const cH=(Math.cos(90.833*rad)-sd*Math.sin(POS.lat*rad))/(cd*Math.cos(POS.lat*rad));
+    if(cH>1||cH<-1){ res[k]=null; return; }
+    let H=k==='opp'?360-Math.acos(cH)/rad:Math.acos(cH)/rad; H/=15;
+    const T=H+RA-0.06571*t-6.622; const UT=((T-lh)%24+24)%24;
+    res[k]=new Date(Date.UTC(y,m,d)+UT*3600000);
+  });
+  return res;
+}
+function maane(now){
+  const d=(now.getTime()-Date.UTC(2000,0,1,12))/86400000;
+  const L=280.460+0.9856474*d, g=(357.528+0.9856003*d)*rad, ls=L+1.915*Math.sin(g)+0.020*Math.sin(2*g);
+  const Lm=218.316+13.176396*d, Mm=(134.963+13.064993*d)*rad, D=(297.850+12.190749*d)*rad;
+  const lm=Lm+6.289*Math.sin(Mm)+1.274*Math.sin(2*D-Mm)+0.658*Math.sin(2*D)+0.214*Math.sin(2*Mm)-0.186*Math.sin(g)-0.114*Math.sin(2*(93.272+13.229350*d)*rad);
+  const e=((lm-ls)%360+360)%360, k=(1-Math.cos(e*rad))/2;
+  const idx=Math.floor(((e+22.5)%360)/45);
+  const navn=['Nymåne','Voksende månesigd','Første kvarter','Voksende måne','Fullmåne','Minkende måne','Siste kvarter','Minkende månesigd'][idx];
+  const tilFull=((180-e+360)%360)/12.19, tilNy=((360-e)%360)/12.19;
+  return {e,k,idx,navn,tilFull,tilNy};
+}
+function maaneSvg(e,k){
+  const r=30,cx=36,cy=36, rx=Math.abs(1-2*k)*r, vox=e<180, gib=k>0.5;
+  let p;
+  if(vox) p=`M${cx} ${cy-r} A${r} ${r} 0 0 1 ${cx} ${cy+r} A${rx} ${r} 0 0 ${gib?1:0} ${cx} ${cy-r}Z`;
+  else p=`M${cx} ${cy-r} A${r} ${r} 0 0 0 ${cx} ${cy+r} A${rx} ${r} 0 0 ${gib?0:1} ${cx} ${cy-r}Z`;
+  return `<svg width="72" height="72" viewBox="0 0 72 72" aria-label="Månen ${Math.round(k*100)} % opplyst"><defs><radialGradient id="mgl"><stop offset=".75" stop-color="#ece7e1" stop-opacity=".18"/><stop offset="1" stop-color="#ece7e1" stop-opacity="0"/></radialGradient></defs>
+   <circle cx="${cx}" cy="${cy}" r="35" fill="url(#mgl)" opacity="${0.3+k*0.7}"/><circle cx="${cx}" cy="${cy}" r="${r}" fill="#2a2b30" stroke="#3a3c42"/>${k>0.005?`<path d="${p}" fill="#ece7e1"/>`:''}</svg>`;
+}
+function solMaanePanel(){
+  const now=new Date(), s=solOppNed(now), sg=solOppNed(new Date(now.getTime()-86400000));
+  const len=(s.opp&&s.ned)?(s.ned-s.opp)/60000:null, lenG=(sg.opp&&sg.ned)?(sg.ned-sg.opp)/60000:null;
+  const diff=len!=null&&lenG!=null?Math.round(len-lenG):null;
+  const m=maane(now), dg=x=>x<1?'under 1 døgn':Math.round(x)+' døgn';
+  const neste=m.idx<4?'Fullmåne om '+dg(m.tilFull):'Nymåne om '+dg(m.tilNy);
+  if(LAT==null) return `<div class="panel o-sol"><div class="ph">Sol og måne</div><div class="evk">Legg inn posisjon (bredde- og lengdegrad) i innstillinger ⚙︎ for å vise sol og måne.</div></div>`;
+  return `<div class="panel o-sol"><div class="ph">Sol og måne<small>${esc(STED())}</small></div><div class="solmane">
+    <div><span class="src">Sol</span><div class="solrad"><span><small>opp</small><b>${s.opp?hhmm(s.opp):'–'}</b></span><span><small>ned</small><b>${s.ned?hhmm(s.ned):'–'}</b></span></div>
+      <small>Dagslengde ${len!=null?Math.floor(len/60)+' t '+Math.round(len%60)+' min':'–'}<br>${diff!=null?(diff<0?diff+' min':'+'+diff+' min')+' mot i går':''}</small></div>
+    <div><span class="src">Måne</span>${maaneSvg(m.e,m.k)}<b style="font-size:17px">${m.navn}</b>
+      <div class="fasebar" title="Fase ${m.idx+1} av 8">${[...Array(8)].map((_,i)=>`<i class="${i===m.idx?'on':''}"></i>`).join('')}</div>
+      <small>${Math.round(m.k*100)} % opplyst · ${neste}</small></div>
+  </div></div>`;
+}
+// Hvor lenge hvert avvik har vært aktivt – huskes per enhet i localStorage
+function avvikVarighet(A){
+  let mem={}; try{ mem=JSON.parse(localStorage.getItem('anlegg.avvik')||'{}'); }catch(e){}
+  const now=Date.now(), ny={};
+  const out=A.map(([s,t])=>{ const k=s+'|'+t.replace(/[\d.,]+/g,'#'); const t0=mem[k]||now; ny[k]=t0;
+    const m=(now-t0)/60000, va=m<1?'ny':m<60?Math.round(m)+' min':m<2880?Math.round(m/60)+' t':Math.round(m/1440)+' d';
+    return [s,t,va]; });
+  try{ localStorage.setItem('anlegg.avvik',JSON.stringify(ny)); }catch(e){}
+  return out;
+}
+/* ---------- Tunet (Eiendom som kart, stil B · Natt) ---------- */
+/* ---------- Tunet (Eiendom som kart, stil B · Natt) – tegnes i ekte piksler ---------- */
+function tunetSvg(W,H){
+  W=Math.max(280,Math.round(W||360)); H=Math.max(440,Math.round(H||W*1.5));
+  const m=4, yardW=Math.max(46,Math.round(W*0.14)), bw=W-2*m-yardW, huW=Math.round(bw*0.56), loW=bw-huW;
+  const uteW=Math.max(142,Math.round(W*0.37)), top=Math.max(128,Math.round(H*0.17)), bot=H-22;
+  const G={x:m+uteW+6,y:22,w:W-m-(m+uteW+6),h:top-22-26};
+  const HU={x:m,y:top,w:huW,h:bot-top}, LO={x:m+huW+yardW,y:top,w:loW,h:bot-top};
+  const cw=HU.w/2, ch=HU.h/3, lh=LO.h/3, yc=HU.x+HU.w+yardW/2;
+  const PORT={x:Math.round(yc-yardW*0.45),w:Math.round(yardW*0.9),y:G.y+G.h}, DOR={x:LO.x,y:LO.y+Math.min(80,lh*0.55)}, LEDX=LO.x-5, YARD={x0:HU.x+HU.w,x1:LO.x};
+  const EAS={x:G.x+G.w-18,y:G.y+28}, VANN={x:LO.x+LO.w-20,y:LO.y+lh-24}, PUMP={x:LO.x+LO.w-20,y:LO.y+3*lh-24};
+  const fsH=Math.max(16,Math.min(26,cw*0.24)), fsB=Math.max(20,Math.min(34,LO.w*0.2)), fsN=Math.max(10.5,Math.min(13,cw*0.13)), fsS=Math.max(11,Math.min(14,cw*0.15));
+  const scol=st=>st==='crit'?C.crit:st==='warn'?C.warn:null;
+  const warm=t=>t==null?'#6a655f':t>=18?'#d4703c':t>=10?'#c9a36a':'#5b8fd6';
+  const L=(x,y,t,c='#6a655f',a='start',fs=11)=>`<text x="${x}" y="${y}" font-size="${fs}" fill="${c}" letter-spacing="1.2" text-anchor="${a}">${t}</text>`;
+  const room=(n,key,x,y,w,h,kind)=>{const id=ID[key], t=v(id,'measure_temperature'), co2=v(id,'measure_co2'), rh=v(id,'measure_humidity');
+    const st=kind==='hus'?co2St(co2):fuktSt(id).s, big=kind!=='hus';
+    const main=big?(rh!=null?f(rh,0)+' %':'–'):f(t)+'°', sec=big?f(t)+'°':(co2!=null?co2+' ppm':'');
+    const ar1=big?arrow(id,'measure_humidity'):arrow(id,'measure_temperature'), ar2=big?arrow(id,'measure_temperature'):(co2!=null?arrow(id,'measure_co2'):'');
+    const det=kind==='hus'?(co2!=null?`${id}|measure_co2|CO₂ ${n}|ppm|1000`:`${id}|measure_temperature|Temperatur ${n}|°C|`):`${id}|measure_humidity|Fukt ${n}|%|90`;
+    return {n,x,y,w,h,st:st==='warn'||st==='crit'?st:null,t,main,sec,big,det,ar1,ar2};};
+  const R=[ room('Garasje','garasje',G.x,G.y,G.w,G.h,'z'),
+    room(RN('stue'),'stue',HU.x,HU.y,cw,ch,'hus'), room(RN('martine'),'martine',HU.x+cw,HU.y,cw,ch,'hus'),
+    room(RN('jm'),'jm',HU.x,HU.y+ch,cw,ch,'hus'), room(RN('julie'),'julie',HU.x+cw,HU.y+ch,cw,ch,'hus'),
+    room(RN('loftstue'),'loftstue',HU.x,HU.y+2*ch,cw,ch,'hus'),
+    room('Inngang','loe',LO.x,LO.y,LO.w,lh,'z'), room('Snekkerbod','snekker',LO.x,LO.y+lh,LO.w,lh,'z'), room('Hevdaløa','hevda',LO.x,LO.y+2*lh,LO.w,lh,'z')];
+  const vw=v(ID.vent,'measure_power'); R.push({n:'Vent.',x:HU.x+cw,y:HU.y+2*ch,w:cw,h:ch,st:(vw??99)<LIM.ventStop?'crit':null,t:20,main:f(vw,0)+' W',sec:(vw??0)>=LIM.ventStop?'i drift':'stoppet',big:false,det:`${ID.vent}|measure_power|Ventilasjon|W|`,ar1:'',ar2:''});
+  const portOpen=v(ID.port,'alarm_contact')===true, ps=S.lastUpd[ID.port+':alarm_contact'], pmin=ps?Math.round((Date.now()-ps)/60000):null;
+  const door=v(ID.dorLoe,'alarm_contact')===true, water=v(ID.vann,'alarm_water')===true, pump=(v(ID.pumpe,'measure_power')??0)>50;
+  const led=v(ID.led,'onoff')===true, ledW=v(ID.led,'measure_power');
+  const easeeOn=v(ID.easee,'evcharger_charging')===true, easeeW=v(ID.easee,'measure_power');
+  const uteT=v(ID.ute,'measure_temperature'), wind=v(ID.vind,'measure_wind_strength'), wdir=v(ID.vind,'measure_wind_angle');
+  const TRC={up:C.warn,dn:C.ok,tu:'#ff8a3d',td:'#7fb2e6',fl:'#6a655f',nu:'#9a948d'};
+  const arr=a=>{ if(!a) return ''; const k=(a.match(/class="tr (\w+)/)||[])[1]||'fl', svak=/svak/.test(a), ch=a.replace(/<[^>]+>/g,''); return `<tspan fill="${TRC[k]}" fill-opacity="${svak?.5:1}" font-weight="700" dx="3">${ch}</tspan>`; };
+  let s=`<svg class="tun" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Kart over tunet"><defs>
+   <filter id="tb1"><feGaussianBlur stdDeviation="6"/></filter><filter id="tb2"><feGaussianBlur stdDeviation="2.2"/></filter>
+   <radialGradient id="tyard" cx="50%" cy="40%" r="75%"><stop offset="0" stop-color="#202228"/><stop offset="1" stop-color="#141518"/></radialGradient>
+   ${R.map((r,i)=>{const c=scol(r.st)||warm(r.t);return `<radialGradient id="tg${i}" cx="45%" cy="40%" r="80%"><stop offset="0" stop-color="${c}" stop-opacity="${r.st?.34:.24}"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`}).join('')}
+   <radialGradient id="tspill" cx="50%" cy="0%" r="100%" fx="50%" fy="0%"><stop offset="0" stop-color="#e8c23a" stop-opacity=".55"/><stop offset=".45" stop-color="#e8c23a" stop-opacity=".18"/><stop offset="1" stop-color="#e8c23a" stop-opacity="0"/></radialGradient>
+   <clipPath id="tclip"><rect x="${YARD.x0+2}" y="${PORT.y}" width="${YARD.x1-YARD.x0-4}" height="100"/></clipPath></defs>
+   <rect width="${W}" height="${H}" rx="12" fill="url(#tyard)"/>`;
+  s+=`<path d="M${PORT.x+8} ${H} L${PORT.x+8} ${PORT.y+4} M${PORT.x+PORT.w-8} ${H} L${PORT.x+PORT.w-8} ${PORT.y+4}" stroke="#24262a" stroke-width="2" stroke-dasharray="6 6"/>`;
+  if(portOpen) s+=`<g clip-path="url(#tclip)"><ellipse cx="${PORT.x+PORT.w/2}" cy="${PORT.y}" rx="${yardW*0.8}" ry="95" fill="url(#tspill)"/></g>`;
+  [['GARASJE',G],['BOLIGHUS',HU],['LØE',LO]].forEach(([n,b])=>{s+=`<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="6" fill="#0f1012" stroke="#2c2e33" stroke-width="2"/>`+(n==='GARASJE'?'':n==='LØE'?L(b.x+b.w,b.y-8,n,'#6a655f','end',11):L(b.x+2,b.y-8,n,'#6a655f','start',11));});
+  R.forEach((r,i)=>{const col=scol(r.st), xo=r.big?11:8, fs=r.big?fsB:fsH, cy=r.y+Math.min(r.h*0.5,fs*2.6);
+    s+=`<g data-det="${r.det}"><rect class="${r.st==='crit'?'pu':''}" x="${r.x+3}" y="${r.y+3}" width="${r.w-6}" height="${r.h-6}" rx="4" fill="url(#tg${i})"/>`;
+    if(r.n!=='Garasje') s+=`<rect x="${r.x}" y="${r.y}" width="${r.w}" height="${r.h}" fill="none" stroke="#24262a" stroke-width="1.5"/>`;
+    s+=L(r.x+xo,r.y+fsN+8,r.n.toUpperCase(),'#b0a9a1','start',fsN)+`<text x="${r.x+xo}" y="${cy+fs*0.45}" font-size="${fs}" font-weight="500" fill="${(r.big&&col)||'#f4efe9'}">${r.main}<tspan font-size="${fsS}">${arr(r.ar1)}</tspan></text><text x="${r.x+xo}" y="${cy+fs*0.45+fsS+8}" font-size="${fsS}" font-weight="${!r.big&&col?600:400}" fill="${(!r.big&&col)||'#b0a9a1'}">${r.sec}${arr(r.ar2)}</text></g>`;});
+  // port
+  s+=`<g data-det="EV|port|Garasjeport|">`+(portOpen?`<line x1="${PORT.x}" y1="${PORT.y}" x2="${PORT.x+PORT.w}" y2="${PORT.y}" stroke="#e8c23a" stroke-width="4" filter="url(#tb2)"/><line x1="${PORT.x}" y1="${PORT.y}" x2="${PORT.x+PORT.w}" y2="${PORT.y}" stroke="#fff3c4" stroke-width="1.5"/>`
+     :`<line x1="${PORT.x}" y1="${PORT.y}" x2="${PORT.x+PORT.w}" y2="${PORT.y}" stroke="#4a4c52" stroke-width="3"/>`)+`<rect x="${PORT.x}" y="${PORT.y-10}" width="${PORT.w}" height="50" fill="transparent"/></g>`;
+  // LED
+  const ly0=LO.y+4, ly1=LO.y+LO.h-4;
+  s+=`<g data-det="${ID.led}|measure_power|LED-stripe Løe|W|">`+(led?`<line x1="${LEDX}" y1="${ly0}" x2="${LEDX}" y2="${ly1}" stroke="#ffe7b8" stroke-width="5" filter="url(#tb1)" opacity=".9"/><line x1="${LEDX}" y1="${ly0}" x2="${LEDX}" y2="${ly1}" stroke="#fff6e2" stroke-width="1.6"/>`:``)
+     +`<rect x="${LEDX-16}" y="${ly0}" width="20" height="${ly1-ly0}" fill="transparent"/></g>`;
+  // dør (lyser gult når åpen)
+  s+=`<g data-det="EV|loe|Løe – dør og bevegelse|"><line x1="${DOR.x}" y1="${DOR.y-28}" x2="${DOR.x}" y2="${DOR.y}" stroke="${door?C.warn:C.ok}" stroke-width="4" ${door?'filter="url(#tb2)"':''}/><rect x="${DOR.x-10}" y="${DOR.y-34}" width="20" height="40" fill="transparent"/></g>`;
+  // ikoner
+  const ico={
+   pump:(x,y,c)=>`<circle cx="${x}" cy="${y}" r="10" fill="#1b1c1f" stroke="${c}" stroke-width="1.7"/><path d="M${x-4} ${y-4.5} L${x+5} ${y} L${x-4} ${y+4.5}Z" fill="${c}"/>`,
+   water:(x,y,c)=>`<path transform="translate(${x},${y})" d="M0 -11 C7 -2 8 2 8 5 A8 8 0 0 1 -8 5 C-8 2 -7 -2 0 -11Z" fill="#1b1c1f" stroke="${c}" stroke-width="1.7"/>`,
+   easee:(x,y,c)=>`<rect x="${x-9}" y="${y-12}" width="18" height="24" rx="4" fill="#1b1c1f" stroke="${c}" stroke-width="1.7"/><path transform="translate(${x},${y})" d="M1 -6.5 L-3.5 1 L0 1 L-1 6.5 L3.5 -1 L0 -1Z" fill="${c}"/>`};
+  const hit=(x,y)=>`<circle cx="${x}" cy="${y+4}" r="20" fill="transparent"/>`;
+  s+=`<g data-det="${ID.easee}|energy_power|Easee-lader|W|">${ico.easee(EAS.x,EAS.y,easeeOn?C.ok:'#8d877f')}${L(EAS.x,EAS.y+27,easeeOn?f((easeeW??0)/1000,1)+' kW':'easee',easeeOn?C.ok:'#8d877f','middle',10)}${hit(EAS.x,EAS.y)}</g>`;
+  s+=`<g data-det="EV|vann|Vannlekkasje Løe|">${ico.water(VANN.x,VANN.y,water?C.crit:C.ok)}${water?L(VANN.x,VANN.y+24,'LEKK',C.crit,'middle',10):''}${hit(VANN.x,VANN.y)}</g>`;
+  s+=`<g data-det="PUMPE|energy_power|Lensepumpe|W|">${ico.pump(PUMP.x,PUMP.y,pump?C.warn:C.ok)}${pump?L(PUMP.x,PUMP.y+25,'GÅR',C.warn,'middle',10):''}${hit(PUMP.x,PUMP.y)}</g>`;
+  // ute ved garasjen
+  s+=`<g data-det="${ID.ute}|measure_temperature|Temperatur ute|°C|"><g transform="translate(${m},${G.y-2}) scale(.9)">${kompass(wdir).replace('class="kompass"','x="0" y="0" width="62" height="62"')}</g>
+    <text x="${m+62}" y="${G.y+22}" font-size="22" font-weight="500" fill="#f4efe9">${f(uteT)}°<tspan font-size="13">${arr(arrow(ID.ute,'measure_temperature'))}</tspan></text>
+    <text x="${m+62}" y="${G.y+42}" font-size="12.5" fill="#b0a9a1"><title>Høyeste siste 24 t${S.uteMax?' – kl. '+hhmm(S.uteMax.t):''}</title><tspan fill="#6a655f" font-size="10.5">maks </tspan>${S.uteMax?f(S.uteMax.v)+'°':'–'}</text>
+    <text x="${m+62}" y="${G.y+59}" font-size="12.5" fill="#b0a9a1"><title>Laveste siste 24 t${S.uteMin?' – kl. '+hhmm(S.uteMin.t):''}</title><tspan fill="#6a655f" font-size="10.5">min </tspan>${S.uteMin?f(S.uteMin.v)+'°':'–'}</text><rect x="0" y="${G.y-4}" width="${uteW}" height="${G.h+4}" fill="transparent"/></g>`;
+  return s+'</svg>';
+}
+const TUN={W:0,H:0};
+function tegnTunet(){
+  const w=document.querySelector('.o-map .tunwrap'); if(!w) return;
+  const W=w.clientWidth; let H=Math.round(W*1.45);
+  if(window.innerWidth>1100){ const cols=[...document.querySelectorAll('#desk > .col')], first=cols.map(c=>c.firstElementChild).filter(Boolean), map=w.closest('.o-map');
+    const others=Math.max(...first.filter(e=>e!==map).map(e=>{const mh=e.style.minHeight; e.style.minHeight=''; const h=e.getBoundingClientRect().height; e.style.minHeight=mh; return h;}));
+    const extra=map.getBoundingClientRect().height-w.getBoundingClientRect().height; H=Math.max(H*0.8,others-extra); }
+  if(Math.abs(W-TUN.W)<2&&Math.abs(H-TUN.H)<4&&w.querySelector('.tun')) return; // allerede riktig størrelse – ingen ny tegning
+  TUN.W=W; TUN.H=Math.round(H); w.style.minHeight=TUN.H+'px'; w.innerHTML=tunetSvg(TUN.W,TUN.H);
+}
+function kompass(deg){ if(deg==null||isNaN(deg)) return '';
+  const r=27,cx=31,cy=31, til=(deg+180)%360;
+  const tk=[...Array(16)].map((_,i)=>{const a=i*22.5*Math.PI/180, L=i%4?3:6; return `<line x1="${cx+Math.sin(a)*(r)}" y1="${cy-Math.cos(a)*(r)}" x2="${cx+Math.sin(a)*(r-L)}" y2="${cy-Math.cos(a)*(r-L)}" stroke="${i%4?'#4a4c52':'#7a756f'}" stroke-width="1.2"/>`}).join('');
+  const lb=[['N',0],['Ø',90],['S',180],['V',270]].map(([n,a])=>{const q=a*Math.PI/180;return `<text x="${cx+Math.sin(q)*(r-12)}" y="${cy-Math.cos(q)*(r-12)+3.5}" font-size="9" fill="${n==='N'?'#d4703c':'#7a756f'}" text-anchor="middle">${n}</text>`}).join('');
+  return `<svg class="kompass" viewBox="0 0 62 62" aria-label="Vind fra ${dirTxt(deg)}"><title>Vind fra ${dirTxt(deg)} (${Math.round(deg)}°)</title><circle cx="${cx}" cy="${cy}" r="${r}" fill="#18191c" stroke="#2f3136"/>${tk}${lb}
+   <g transform="rotate(${til} ${cx} ${cy})"><line x1="${cx}" y1="${cy+15}" x2="${cx}" y2="${cy-12}" stroke="#ece7e1" stroke-width="2.2" stroke-linecap="round"/><path d="M${cx} ${cy-17} L${cx-5} ${cy-9} L${cx+5} ${cy-9}Z" fill="#ece7e1"/><circle cx="${cx}" cy="${cy+15}" r="2.6" fill="#d4703c"/></g></svg>`; }
+const HC={};
+function hcReg(o){ const id='hc'+Math.random().toString(36).slice(2,8); HC[id]=o; return id; }
+function hcTick(t0,t1,x,H,l,W,r,t,b){ return [0,.25,.5,.75,1].map(q=>{const tt=t0+(t1-t0)*q,dd=new Date(tt);const lab=(t1-t0)>86400000*1.5?dato(dd).slice(0,5)+((t1-t0)<86400000*3?' '+hhmm(dd):''):hhmm(dd);
+  return `${q>0&&q<1?`<line x1="${x(tt)}" x2="${x(tt)}" y1="${t}" y2="${H-b}" stroke="#2f3136" stroke-dasharray="2 4"/>`:''}<text x="${x(tt)}" y="${H-6}" fill="#9a948d" font-size="11" text-anchor="${q===0?'start':q===1?'end':'middle'}">${lab}</text>`}).join(''); }
+function hcOverlay(id,H,t,b,n){ return `<line class="hcl" x1="0" x2="0" y1="${t}" y2="${H-b}" stroke="#ece7e1" stroke-opacity=".35" style="display:none"/>${[...Array(n)].map((_,i)=>`<circle class="hcd" r="4" fill="#ece7e1" stroke="#1c1d20" stroke-width="2" style="display:none"/>`).join('')}<rect class="hcz" data-hc="${id}" x="0" y="0" width="100%" height="100%" fill="transparent"/>`; }
+function hcNear(a,tt){ let lo=0,hi=a.length-1; while(hi-lo>1){const m=(lo+hi)>>1; if(a[m].t.getTime()<tt) lo=m; else hi=m;} return Math.abs(a[lo].t.getTime()-tt)<Math.abs(a[hi].t.getTime()-tt)?a[lo]:a[hi]; }
+function hcMove(ev){
+  const z=ev.target.closest&&ev.target.closest('.hcz'); if(!z) return; const o=HC[z.dataset.hc]; if(!o) return;
+  const svg=z.ownerSVGElement, R=svg.getBoundingClientRect(), sx=o.W/R.width, px=(ev.clientX-R.left)*sx;
+  const tt=o.t0+Math.max(0,Math.min(1,(px-o.l)/(o.W-o.l-o.r)))*(o.t1-o.t0);
+  const pts=o.series.map(S2=>S2.a&&S2.a.length?hcNear(S2.a,tt):null), p0=pts.find(Boolean); if(!p0) return;
+  const xx=o.x(p0.t.getTime()), ln=svg.querySelector('.hcl'); ln.setAttribute('x1',xx); ln.setAttribute('x2',xx); ln.style.display='';
+  const dots=svg.querySelectorAll('.hcd'); let ymin=1e9;
+  pts.forEach((p,i)=>{ const d=dots[i]; if(!p||!d){ if(d) d.style.display='none'; return; } const yy=o.y(p.v); ymin=Math.min(ymin,yy); d.setAttribute('cx',o.x(p.t.getTime())); d.setAttribute('cy',yy); d.setAttribute('fill',o.series[i].c||'#ece7e1'); d.style.display=''; });
+  const wrap=svg.parentElement, tip=wrap.querySelector('.hctip'); if(!tip) return;
+  const dd=p0.t, tl=(dato(dd)===dato(new Date())?'':dato(dd).slice(0,5)+' ')+hhmm(dd);
+  tip.innerHTML=`<div style="color:var(--m)">${tl}</div>`+pts.map((p,i)=>p?`<div>${o.series.length>1?`<i style="background:${o.series[i].c}"></i>${o.series[i].n} `:''}<b>${o.fmt(p.v)}</b></div>`:'').join('');
+  tip.style.display='block'; const W2=wrap.clientWidth, lx=Math.max(60,Math.min(W2-60,xx/sx)); tip.style.left=lx+'px'; tip.style.top=Math.max(40,ymin/(o.H/R.height)-10)+'px';
+}
+function hcOut(ev){ const z=ev.target.closest&&ev.target.closest('.hcz'); if(!z) return; const svg=z.ownerSVGElement; svg.querySelectorAll('.hcl,.hcd').forEach(e=>e.style.display='none'); const tip=svg.parentElement.querySelector('.hctip'); if(tip) tip.style.display='none'; }
+document.addEventListener('pointermove',hcMove); document.addEventListener('pointerdown',hcMove); document.addEventListener('pointerout',hcOut);
+function bigChart(a,unit,thr){
+  if(!a||a.length<2) return '<div class="nohist">Ingen data for perioden</div>';
+  const W=640,H=220,l=46,r=10,t=12,b=26, vs=a.map(e=>e.v), mn=Math.min(...vs), mx=Math.max(...vs);
+  let lo=mn, hi=mx; if(thr!=null&&!isNaN(thr)){lo=Math.min(lo,thr);hi=Math.max(hi,thr);} const pad=(hi-lo)*0.08||1; lo-=pad; hi+=pad;
+  const t0=a[0].t.getTime(), t1=a[a.length-1].t.getTime();
+  const x=tt=>l+(tt-t0)/(t1-t0||1)*(W-l-r), y=val=>t+(1-(val-lo)/(hi-lo))*(H-t-b);
+  const d=a.map((e,i)=>`${i?'L':'M'}${x(e.t.getTime()).toFixed(1)},${y(e.v).toFixed(1)}`).join('');
+  const dec=unit==='ppm'||unit==='%'?0:1;
+  const fmtV=val=>unit==='W'?f(val/1000,2)+' kW':f(val,dec)+' '+unit;
+  const ticks=hcTick(t0,t1,x,H,l,W,r,t,b);
+  const hid=hcReg({W,H,l,r,t,b,t0,t1,x,y,fmt:fmtV,series:[{a,c:'#ece7e1',n:''}]});
+  const grid=[lo+pad,(lo+hi)/2,hi-pad].map(val=>`<line x1="${l}" x2="${W-r}" y1="${y(val)}" y2="${y(val)}" stroke="#2f3136"/><text x="${l-6}" y="${y(val)+4}" fill="#9a948d" font-size="10.5" text-anchor="end">${unit==='W'?f(val/1000,1):f(val,dec)}</text>`).join('');
+  const th=(thr!=null&&!isNaN(thr))?`<line x1="${l}" x2="${W-r}" y1="${y(thr)}" y2="${y(thr)}" stroke="#e8c23a" stroke-dasharray="4 4" opacity=".7"/>`:'';
+  const id='bc'+Math.random().toString(36).slice(2,7);
+  return `<div class="hcw"><div class="hctip"></div><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;touch-action:pan-y" role="img" aria-label="Kurve"><defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4703c" stop-opacity=".35"/><stop offset="1" stop-color="#d4703c" stop-opacity="0"/></linearGradient></defs>
+   ${grid}${th}<path d="${d}L${x(t1)},${H-b}L${x(t0)},${H-b}Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="#d4703c" stroke-width="2"/>${ticks}${hcOverlay(hid,H,t,b,1)}</svg></div>
+   <div class="detst num"><span>Min <b>${fmtV(mn)}</b></span><span>Snitt <b>${fmtV(vs.reduce((s,q)=>s+q,0)/vs.length)}</b></span><span>Maks <b>${fmtV(mx)}</b></span><span>Siste <b>${fmtV(vs[vs.length-1])}</b></span></div>`;
+}
+// Noen stikkontakter logger effekt som energy_power i stedet for measure_power (og omvendt) – prøv den andre ved 404
+const CAP_ALT={measure_power:'energy_power',energy_power:'measure_power'};
+async function hentPeriode1(id,cap,res){
+  if(res==='last12Hours'){ const a=await insights(id,cap,'last24Hours'); const c=Date.now()-12*3600000; return a?a.filter(e=>e.t.getTime()>=c):a; }
+  return insights(id,cap,res);
+}
+async function hentPeriode(id,cap,res){
+  let r, feil=null;
+  try{ r=await hentPeriode1(id,cap,res); }catch(e){ feil=e; }
+  if((feil||!r||!r.length)&&CAP_ALT[cap]){ try{ const r2=await hentPeriode1(id,CAP_ALT[cap],res); if(r2&&r2.length) return r2; }catch(e){} }
+  if(feil) throw feil; return r;
+}
+function multiChart(series,unit){
+  const all=series.flatMap(x=>x.a||[]); if(all.length<2) return '<div class="nohist">Ingen fasedata for perioden</div>';
+  const W=640,H=170,l=40,r=10,t=10,b=24, lo=0, hi=Math.max(5,...all.map(e=>e.v))*1.1;
+  const t0=Math.min(...all.map(e=>e.t.getTime())), t1=Math.max(...all.map(e=>e.t.getTime()));
+  const x=tt=>l+(tt-t0)/(t1-t0||1)*(W-l-r), y=val=>t+(1-(val-lo)/(hi-lo))*(H-t-b);
+  const grid=[0,hi/2,hi].map(v2=>`<line x1="${l}" x2="${W-r}" y1="${y(v2)}" y2="${y(v2)}" stroke="#2f3136"/><text x="${l-6}" y="${y(v2)+4}" fill="#9a948d" font-size="10.5" text-anchor="end">${f(v2,0)}</text>`).join('');
+  const lines=series.map(S2=>!S2.a||S2.a.length<2?'':`<path d="${S2.a.map((e,i)=>`${i?'L':'M'}${x(e.t.getTime()).toFixed(1)},${y(e.v).toFixed(1)}`).join('')}" fill="none" stroke="${S2.c}" stroke-width="1.8"/>`).join('');
+  const ticks=hcTick(t0,t1,x,H,l,W,r,t,b);
+  const hid=hcReg({W,H,l,r,t,b,t0,t1,x,y,fmt:v2=>f(v2,1)+' '+unit,series:series.map(S2=>({a:S2.a,c:S2.c,n:S2.n}))});
+  const leg=series.map(S2=>`<span><i style="background:${S2.c}"></i>${S2.n}</span>`).join('');
+  return `<div class="leg">${leg}<span style="margin-left:auto">${unit}</span></div><div class="hcw"><div class="hctip"></div><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;touch-action:pan-y" role="img" aria-label="Fasestrøm">${grid}${lines}${ticks}${hcOverlay(hid,H,t,b,series.length)}</svg></div>`;
+}
+// Varmtvannsbereder på L3: finn innkoblinger som sprang i strømmen over grunnlasten
+const VVB={fase:'L3', terskelA:7, volt:230};
+function vvbSykluser(a){
+  const p=(a||[]).filter(e=>e&&e.v!=null).sort((x,y)=>x.t-y.t); if(p.length<4) return null;
+  const sorted=p.map(e=>e.v).sort((x,y)=>x-y), base=sorted[Math.floor(sorted.length*0.2)], thr=base+VVB.terskelA;
+  const step=Math.max(60000,(p[p.length-1].t-p[0].t)/Math.max(1,p.length-1));
+  const cyc=[]; let cur=null;
+  p.forEach(e=>{ const on=e.v>thr;
+    if(on&&!cur) cur={t0:e.t,t1:e.t,sumA:0,n:0};
+    if(on){ cur.t1=e.t; cur.sumA+=e.v-base; cur.n++; }
+    else if(cur){ cur.t1=e.t; cyc.push(cur); cur=null; } });
+  if(cur){ cur.t1=new Date(cur.t1.getTime()+step); cur.paa=true; cyc.push(cur); }
+  cyc.forEach(c=>{ c.ms=Math.max(step,c.t1-c.t0); c.kw=(c.sumA/Math.max(1,c.n))*VVB.volt/1000; c.kwh=c.kw*c.ms/3600000; c.kr=c.kwh*(strOre()+nettOre(erDag(c.t0)))/100; });
+  return {cyc,base,step};
+}
+function vvbPanel(a,res){
+  const r=vvbSykluser(a); if(!r) return '';
+  const C2=r.cyc, t1=Date.now(), t0=t1-PERIOD_MS[res];
+  const tot=C2.reduce((x,c)=>x+c.ms,0), kwh=C2.reduce((x,c)=>x+c.kwh,0), kr=C2.reduce((x,c)=>x+c.kr,0);
+  const dg=Math.max(1/24,PERIOD_MS[res]/86400000), kwSnitt=C2.length?C2.reduce((x,c)=>x+c.kw,0)/C2.length:null;
+  const perDag=x=>dg>1.5?x/dg:x;
+  // nattlige innkoblinger (01–05) skyldes nesten bare varmetap fra tanken, ikke tappevann
+  const natt=C2.filter(c=>{const h=+new Intl.DateTimeFormat('nb-NO',{timeZone:tz,hour:'2-digit',hour12:false}).format(c.t0)%24; return h>=1&&h<5;});
+  const nattKwh=natt.length?natt.reduce((x,c)=>x+c.kwh,0)/natt.length:null;
+  const mellom=C2.length>1?(C2[C2.length-1].t0-C2[0].t0)/(C2.length-1):null;
+  // varmetap: energi per nattlig innkobling × hvor ofte den slår inn når ingen bruker vann
+  const nattMellom=natt.length>1?(natt[natt.length-1].t0-natt[0].t0)/(natt.length-1):null;
+  const tapMellom=nattMellom&&nattMellom>45*60000?nattMellom:mellom;
+  const tapDogn=(nattKwh!=null&&tapMellom)?Math.min(kwh/dg,nattKwh*86400000/tapMellom):null;
+  const per={lastHour:'siste time',last12Hours:'siste 12 timer',last24Hours:'siste 24 timer',last7Days:'siste 7 døgn',last31Days:'siste 30 døgn'}[res]||'';
+  const kort=(lbl,val,sub)=>`<div style="background:var(--s2);box-shadow:var(--inset);border-radius:10px;padding:10px 12px"><div style="font-size:11.5px;color:var(--m)">${lbl}</div><div class="num" style="font:500 22px var(--gnum,var(--mono));color:var(--t);margin-top:2px">${val}</div><div style="font-size:11px;color:var(--d)">${sub||''}</div></div>`;
+  const W=600,H=34, x=t=>(t-t0)/(t1-t0)*W;
+  const strip=`<svg viewBox="0 0 ${W} ${H+16}" style="width:100%;display:block;margin:10px 0 4px"><rect x="0" y="4" width="${W}" height="${H-8}" rx="5" fill="#1b1c1f"/>
+    ${C2.map(c=>`<rect x="${Math.max(0,x(c.t0))}" y="4" width="${Math.max(2.5,x(c.t0.getTime()+c.ms)-x(c.t0))}" height="${H-8}" rx="2" fill="#c9a7e6"${c.paa?' opacity=".95"':' opacity=".8"'}/>`).join('')}
+    ${[0,.25,.5,.75,1].map(q=>{const tt=t0+(t1-t0)*q,d=new Date(tt);return `<text x="${q*W}" y="${H+12}" font-size="10.5" fill="#9a948d" text-anchor="${q===0?'start':q===1?'end':'middle'}" font-family="IBM Plex Mono">${(t1-t0)>1.5*86400000?dato(d).slice(0,5):hhmm(d)}</text>`}).join('')}</svg>`;
+  const rows=C2.slice().reverse().slice(0,10).map(c=>`<tr><td>${tidTxt(c.t0)}</td><td>${c.paa?'<b class="c-warn">på nå</b>':varTxt(c.ms)}</td><td>${f(c.kwh,1)} kWh</td><td>${f(c.kr,1)} kr</td></tr>`).join('');
+  const grov=r.step>15*60000?`<div class="evk"><em>Grov oppløsning fra Homey (${Math.round(r.step/60000)} min per punkt) – velg 24 t eller kortere for presise tall.</em></div>`:'';
+  return `<div class="ph" style="margin-top:14px">Varmtvannsbereder<small>${per}</small></div>
+   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+     ${kort('Innkoblinger',C2.length+(dg>1.5?'':''),dg>1.5?f(C2.length/dg,1)+' per døgn':(mellom?'ca. hver '+varTxt(mellom):''))}
+     ${kort('Tid på',varTxt(perDag(tot)),dg>1.5?'per døgn':'snitt '+f(C2.length?tot/C2.length/60000:0,0)+' min hver')}
+     ${kort('Energi',f(perDag(kwh),1)+' kWh',(dg>1.5?'per døgn · ':'')+(kwSnitt?'effekt ca. '+f(kwSnitt,1)+' kW':''))}
+     ${kort('Kostnad',f(perDag(kr),0)+' kr',dg>1.5?'per døgn':'≈ '+f(kr*30/dg,0)+' kr/mnd')}
+   </div>
+   ${strip}
+   <div class="evk" style="line-height:1.55">
+     Berederen slår seg på for å holde vannet varmt. <b style="color:var(--t)">Korte innkoblinger med jevne mellomrom</b> – også om natta når ingen bruker vann – erstatter varmen som lekker ut av tanken. <b style="color:var(--t)">Lengre innkoblinger</b> kommer etter dusj eller oppvask.
+     ${tapDogn!=null?`<br>Ut fra nattens innkoblinger taper tanken ca. <b style="color:var(--t)">${f(tapDogn,1)} kWh i døgnet</b> bare på å stå varm (ca. ${f(tapDogn*30*(strOre()+nettOre(false))/100,0)} kr/mnd).`:''}
+   </div>
+   <table class="vvbt"><thead><tr><th>Start</th><th>Varighet</th><th>Energi</th><th>Kost</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Ingen innkoblinger i perioden</td></tr>'}</tbody></table>
+   <div class="evk" style="font-size:11px">Beregnet fra strømhopp på ${VVB.fase} (over ${VVB.terskelA} A) × ${VVB.volt} V. Andre store laster på ${VVB.fase} kan telles med.</div>${grov}`;
+}
+function faseNaa(){
+  const P=ID.pulse, L=[v(P,'measure_current.L1'),v(P,'measure_current.L2'),v(P,'measure_current.L3')], sum=L.reduce((a,b)=>a+(b||0),0);
+  const FC=['#ff8a3d','#9cc3dc','#c9a7e6'], mx=L.indexOf(Math.max(...L.map(x=>x||0)));   // samme farger som fasekurvene
+  return `<div class="phases">${L.map((a,i)=>`<div class="phase"><span style="color:${FC[i]}">L${i+1}</span><span class="tr"><i style="width:${Math.min(100,(a||0)/25*100)}%;background:linear-gradient(90deg,${FC[i]}99,${FC[i]});box-shadow:0 0 8px ${FC[i]}55"></i></span><span style="text-align:right">${f(a)} A</span></div>`).join('')}
+    <div class="foot">${sum?'L'+(mx+1)+' BÆRER '+Math.round((L[mx]||0)/sum*100)+' % AV LASTEN NÅ':''}${S.step?.top?.length?' · TOPPER MÅNEDEN: '+S.step.top.map(([d,k])=>d+' '+f(k,2)+' kW').join(' · '):''}</div></div>`;
+}
+
+const PERIOD_MS={lastHour:3600000,last12Hours:43200000,last24Hours:86400000,last7Days:7*86400000,last31Days:30*86400000};
+const EV_LANES={
+  loe:[{n:'Dør',dev:()=>ID.dorLoe,cap:'alarm_contact',c:'#ff8a3d',on:'Dør åpnet',off:'Dør lukket'},{n:'Bevegelse',dev:()=>ID.bev,cap:'alarm_motion',c:'#9cc3dc',on:'Bevegelse',off:null}],
+  port:[{n:'Port',dev:()=>ID.port,cap:'alarm_contact',c:'#ff8a3d',on:'Port åpnet',off:'Port lukket'}],
+  vann:[{n:'Vann',dev:()=>ID.vann,cap:'alarm_water',c:'#ff5a4f',on:'Vann oppdaget',off:'Tørt igjen'}]
+};
+function eventChart(lanes,t0,t1){
+  const W=640,lh=30,l=86,r=10,top=6,H=top+lanes.length*(lh+8)+22;
+  const x=tt=>l+(Math.min(Math.max(tt,t0),t1)-t0)/(t1-t0)*(W-l-r);
+  let g='';
+  lanes.forEach((L,i)=>{ const y=top+i*(lh+8);
+    g+=`<rect x="${l}" y="${y}" width="${W-l-r}" height="${lh}" rx="6" fill="#1b1c1f"/><text x="${l-10}" y="${y+lh/2+4}" fill="#9a948d" font-size="12" text-anchor="end" font-family="IBM Plex Sans">${L.n}</text>`;
+    const a=(L.a||[]).slice().sort((p,q)=>p.t-q.t);
+    a.forEach((e,k)=>{ if(!(e.v===true||e.v===1)) return; const s0=e.t.getTime(); let s1=s0+60000;
+      for(let m=k+1;m<a.length;m++){ if(!(a[m].v===true||a[m].v===1)){ s1=a[m].t.getTime(); break; } }
+      const xa=x(s0), w=Math.max(2,x(s1)-xa); g+=`<rect x="${xa}" y="${y+4}" width="${w}" height="${lh-8}" rx="2" fill="${L.c}" opacity=".9"><title>${L.n} ${tidTxt(e.t)}</title></rect>`; });
+  });
+  const tk=[0,.25,.5,.75,1].map(q=>{const tt=t0+(t1-t0)*q,dd=new Date(tt);const lab=(t1-t0)>86400000*1.5?dato(dd).slice(0,5):hhmm(dd);return `<text x="${x(tt)}" y="${H-5}" fill="#9a948d" font-size="11" text-anchor="${q===0?'start':q===1?'end':'middle'}">${lab}</text>`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block" role="img" aria-label="Hendelser">${g}${tk}</svg>`;
+}
+const varTxt=ms=>{const m=Math.round(ms/60000); return m<1?'under 1 min':m<60?m+' min':m<1440?Math.floor(m/60)+' t '+(m%60)+' min':Math.round(m/1440)+' døgn';};
+async function visHendelser(key,res){
+  const lanes=EV_LANES[key].map(L=>({...L})), t1=Date.now(), t0=t1-PERIOD_MS[res];
+  await Promise.all(lanes.map(async L=>{ try{ L.a=(await hentPeriode(L.dev(),L.cap,res)||[]).slice().sort((p,q)=>p.t-q.t); }catch(e){ L.a=[]; } }));
+  const isOn=e=>e.v===true||e.v===1, events=[];
+  lanes.forEach(L=>{ let start=null;
+    L.a.forEach(e=>{ const tt=e.t.getTime();
+      if(isOn(e)){ if(start==null){ start=tt; if(tt>=t0) events.push({t:e.t,L,on:true}); } }
+      else if(start!=null){ if(tt>=t0&&L.off) events.push({t:e.t,L,on:false,dur:tt-start}); start=null; } });
+    L.aktivNa=start!=null?start:null; });
+  events.sort((p,q)=>q.t-p.t);
+  if(key==='loe'){ const doors=events.filter(e=>e.L.n==='Dør'&&e.on).map(e=>e.t); S.doorEv=S.doorEv&&S.doorEv.length>doors.length?S.doorEv:doors.slice().reverse(); }
+  const cnt=lanes.map(L=>`${L.on}: ${events.filter(e=>e.L===L&&e.on).length}`).join(' · ')+lanes.filter(L=>L.aktivNa!=null&&L.off).map(L=>` · <b class="c-warn">${L.n} åpen nå (${varTxt(t1-L.aktivNa)})</b>`).join('');
+  const list=events.slice(0,40).map(e=>{ const c=e.on?e.L.c:'#5fbf8f';
+    const ekstra=e.on?(e.L.n==='Bevegelse'&&key==='loe'?(tolkBevegelse(e.t)==='person'?' <em class="c-warn">– med døråpning</em>':' <em>– trolig katt</em>'):''):` <em>– var åpen ${varTxt(e.dur)}</em>`;
+    return `<div><span class="t">${tidTxt(e.t)}</span><span><i style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:7px;vertical-align:1px"></i>${e.on?e.L.on:e.L.off}${ekstra}</span></div>`; }).join('');
+  return eventChart(lanes,t0,t1)+`<div class="evk">${cnt}</div><div class="evlist">${list||'<div>Ingen hendelser i perioden</div>'}</div>`;
+}
+
+async function showDetail(res){
+  if(!DET) return; Object.keys(HC).forEach(k=>delete HC[k]); const [id,cap,title,unit,thr]=DET, body=document.getElementById('detBody');
+  document.getElementById('detTitle').textContent=title;
+  document.querySelectorAll('#det .seg button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.r===res)));
+  body.innerHTML='<div class="nohist">Henter …</div>';
+  try{
+    if(id==='BATT'){ document.querySelector('#det .seg').style.visibility='hidden';
+      const L=S.alleBatt||[]; const col=b=>b<=10?C.crit:b<LIM.batt?C.warn:C.ok;
+      body.innerHTML=`<div class="evk">${L.length} enheter med batteri · gul under ${LIM.batt} % · rød under 10 %</div><div class="blist">`+L.map(o=>`<div><span>${esc(o.n)}${o.ubrukt?' <em>(ubrukt)</em>':''}<small>${o.t?'rapportert '+tidTxt(o.t):''}</small></span><span class="bb"><i style="width:${Math.max(2,o.b)}%;background:${col(o.b)}"></i></span><span class="p" style="color:${col(o.b)}">${f(o.b,0)} %</span></div>`).join('')+'</div>';
+      return; }
+    document.querySelector('#det .seg').style.visibility='';
+    if(id==='EV'){ body.innerHTML=await visHendelser(cap,res); }
+    else if(id==='PUMPE'){
+      const P=pumpeStat(), a=await hentPeriode(ID.pumpe,'energy_power',res);
+      body.innerHTML=(P?`<div class="ph">Kjøretid per døgn<small>siste ${P.d.length} døgn</small></div>${pumpeBars(P.d,'big')}<div class="evk num">I dag ${minF(P.last)} min · snitt ${minF(P.avg)} min/døgn · høyeste ${minF(P.mx)} min · beregnet fra strømbruk ÷ ${PUMPE_W} W</div><div class="ph" style="margin-top:10px">Effekt</div>`:'')+bigChart(a,'W',null);
+    }
+    else if(id==='PHASES'){
+      const P=ID.pulse;
+      const [pw,l1,l2,l3]=await Promise.all([hentPeriode(P,'energy_power',res),hentPeriode(P,'measure_current.L1',res).catch(()=>null),hentPeriode(P,'measure_current.L2',res).catch(()=>null),hentPeriode(P,'measure_current.L3',res).catch(()=>null)]);
+      body.innerHTML=bigChart(pw,'W',LIM.step*1000)+'<div class="ph" style="margin-top:6px">Faser</div>'+faseNaa()+multiChart([{n:'L1',c:'#ff8a3d',a:l1},{n:'L2',c:'#9cc3dc',a:l2},{n:'L3',c:'#c9a7e6',a:l3}],'A')+vvbPanel(l3,res);
+    } else {
+      const a=await hentPeriode(id,cap,res); body.innerHTML=bigChart(a,unit,thr===''?null:parseFloat(thr))+(cap==='measure_humidity'&&[ID.garasje,ID.hevda,ID.loe,ID.snekker].includes(id)?vaattidPanel(id):'');
+    }
+  }catch(e){ body.innerHTML=`<div class="nohist">Fikk ikke hentet historikk (${esc(e.message)})</div>`; }
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('[data-det]'); if(!el||S.mode!=='live') return;
+  DET=el.dataset.det.split('|'); document.getElementById('det').showModal(); showDetail('last24Hours');
+});
+document.addEventListener('DOMContentLoaded',()=>{
+  document.querySelectorAll('#det .seg button').forEach(b=>b.addEventListener('click',()=>showDetail(b.dataset.r)));
+  document.getElementById('detClose').addEventListener('click',()=>document.getElementById('det').close());
+  document.getElementById('det').addEventListener('click',e=>{ if(e.target.id==='det') e.target.close(); });
+});
+
+/* ---------- Automatisk oppdatering av selve dashbordet (GitHub Pages) ---------- */
+const VMON=/^homey-dashbord-v(\d+)\.(\d+)\.html$/;
+async function checkUpdate(){
+  try{
+    if(!location.hostname.endsWith('github.io')) return;
+    const cur=location.pathname.split('/').pop(); if(!VMON.test(cur)) return;
+    const eier=location.hostname.split('.')[0], repo=location.pathname.split('/').filter(Boolean)[0];
+    const r=await fetch(`https://api.github.com/repos/${eier}/${repo}/contents/?t=${Date.now()}`,{cache:'no-store'}); if(!r.ok) return;
+    const ny=(await r.json()).map(x=>x.name).filter(n=>VMON.test(n)).sort((a,b)=>{const[,a1,a2]=a.match(VMON),[,b1,b2]=b.match(VMON);return (b1-a1)||(b2-a2)})[0];
+    if(!ny||ny===cur) return;
+    const [,n1,n2]=ny.match(VMON).map(Number),[,c1,c2]=cur.match(VMON).map(Number);
+    if(n1<c1||(n1===c1&&n2<=c2)) return;            // bare oppgrader, aldri nedgrader
+    if(window.top!==window) window.top.location.reload(); else location.href=ny;
+  }catch(e){}
+}
+setInterval(checkUpdate,3600000);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') checkUpdate(); });
+
+/* ---------- Innstillinger ---------- */
+function openSettings(){const d=document.getElementById('dlg'),{base,key}=cfg(); document.getElementById('fBase').value=base||'https://';document.getElementById('fName').value=store.get('homey.name')||'';document.getElementById('fLocal').value=store.get('homey.local')||''; document.getElementById('fKey').value=key?'••••••••':''; document.getElementById('fPos').value=LAT!=null?LAT+', '+LON:''; document.getElementById('fSted').value=PRIV.sted||''; document.getElementById('fRom').value=['martine','jm','julie'].map(RN).join(', '); d.showModal();}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('bSet').addEventListener('click',openSettings);
+  document.getElementById('dlgCancel').addEventListener('click',()=>document.getElementById('dlg').close());
+  document.getElementById('dlgForget').addEventListener('click',()=>{store.del('homey.key');store.del('homey.base');store.del('homey.name');store.del('homey.local');S.base=null;setTitle();document.getElementById('dlg').close();start();});
+  document.getElementById('dlgForm').addEventListener('submit',e=>{e.preventDefault();
+    const b=document.getElementById('fBase').value.trim(), k=document.getElementById('fKey').value.trim(), nm=document.getElementById('fName').value.trim();
+    if(nm) store.set('homey.name',nm); else store.del('homey.name'); setTitle();
+    if(b){ const isLocal=/^(\d{1,3}\.){3}\d{1,3}(:\d+)?$/.test(b.replace(/\/.*$/,''))||/\.local(:\d+)?$/.test(b.replace(/\/.*$/,'')); store.set('homey.base',/^https?:\/\//.test(b)?b:(isLocal?'http://':'https://')+b); }
+    if(k&&!k.startsWith('•')) store.set('homey.key',k);
+    const lo=document.getElementById('fLocal').value.trim(); if(lo) store.set('homey.local',lo); else store.del('homey.local');
+    const pos=document.getElementById('fPos').value.split(',').map(x=>parseFloat(x.trim().replace(/\s/g,'')));
+    if(pos.length===2&&pos.every(x=>isFinite(x))){ PRIV.lat=+pos[0].toFixed(3); PRIV.lon=+pos[1].toFixed(3); } else { delete PRIV.lat; delete PRIV.lon; }
+    const st=document.getElementById('fSted').value.trim(); if(st) PRIV.sted=st; else delete PRIV.sted;
+    const rn=document.getElementById('fRom').value.split(',').map(x=>x.trim()); PRIV.rom={}; ['martine','jm','julie'].forEach((k,i)=>{ if(rn[i]) PRIV.rom[k]=rn[i]; });
+    try{ localStorage.setItem('anlegg.priv',JSON.stringify(PRIV)); }catch(e){}
+    LAT=+PRIV.lat||null; LON=+PRIV.lon||null; loadYr();
+    S.base=null;
+    document.getElementById('dlg').close(); start();});
+  setTitle(); render(); start(); loadYr(); setTimeout(checkUpdate,8000); tYr=setInterval(loadYr,1800000);
+});
+
+</script>
+</body>
+</html>
